@@ -23,8 +23,35 @@ class ProdukController extends Controller
 {
     public function index(Request $request)
     {
-        // Mengambil semua produk dengan relasi yang diperlukan
-        $produk = Produk::with(['gambarProduk'])->get();
+        // Mengambil semua produk tanpa relasi produk variasi
+        $produk = Produk::with('kategori2','gambarProduk')->get();
+
+        // Mengolah data untuk menambahkan harga terendah
+        $produk->transform(function ($item) {
+            // Mengambil variasi produk
+            $variations = $item->produkVariasi;
+
+            // Cek apakah variasi ada
+            if ($variations->isNotEmpty()) {
+                // Mengambil harga terendah
+                $minPrice = $variations->min('harga');
+            } else {
+                $minPrice = null; // Jika tidak ada variasi, bisa diset ke null atau 0
+            }
+
+            // Menambahkan harga terendah ke objek produk
+            return [
+                'id_produk' => $item->id_produk,
+                'kategori_2' => $item->kategori2,
+                'nama_produk' => $item->nama_produk,
+                'harga' => $minPrice, // Menyertakan harga terendah
+                'deskripsi' => $item->deskripsi,
+                'tanggal_dibuat' => $item->tanggal_dibuat,
+                'tanggal_diperbarui' => $item->tanggal_diperbarui,
+                'gambar_produk' => $item->gambarProduk // Menyertakan gambar produk
+                
+            ];
+        });
 
         return response()->json([
             'status' => 'success',
@@ -35,7 +62,7 @@ class ProdukController extends Controller
     public function show($id)
     {
         // Mengambil produk berdasarkan ID dengan relasi yang diperlukan
-        $produk = Produk::with(['gambarProduk', 'produkVariasi.detailProdukVariasi.opsiVariasi.tipeVariasi', 'produkVariasi.gambarVariasi'])
+        $produk = Produk::with(['detailProduk','gambarProduk', 'produkVariasi.detailProdukVariasi.opsiVariasi.tipeVariasi', 'produkVariasi.gambarVariasi'])
                         ->findOrFail($id);
 
         return response()->json([

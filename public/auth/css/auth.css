@@ -1,0 +1,234 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+        Ubuntu, Cantarell, sans-serif;
+}
+
+body {
+    background-color: #f5f5f5;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.container {
+    display: flex;
+    max-width: 1200px;
+    width: 100%;
+    background: white;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    margin: 20px;
+}
+
+.left-side {
+    flex: 1;
+    background: #f8f8f8;
+    padding: 40px;
+    position: relative;
+}
+
+.logo {
+    font-size: 24px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 30px;
+}
+
+.image-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: calc(100% - 60px);
+}
+
+.featured-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.right-side {
+    flex: 1;
+    padding: 40px;
+}
+
+.form-container {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+h1 {
+    font-size: 32px;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.auth-link {
+    color: #666;
+    margin-bottom: 30px;
+}
+
+.auth-link a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    color: #333;
+    font-size: 14px;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"] {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.3s;
+}
+
+input:focus {
+    outline: none;
+    border-color: #007bff;
+}
+
+.password-input {
+    position: relative;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.eye-icon {
+    width: 20px;
+    height: 20px;
+    opacity: 0.5;
+}
+
+.checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.checkbox label {
+    margin-bottom: 0;
+    font-size: 14px;
+}
+
+.checkbox a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.submit-btn {
+    width: 100%;
+    padding: 12px;
+    background: #000;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.submit-btn:hover {
+    background: #333;
+}
+
+.forgot-password {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.forgot-password a {
+    color: #666;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.success-message,
+.error-message {
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+.success-message {
+    background: #f0fff4;
+    border: 1px solid #c6f6d5;
+    color: #28a745;
+}
+
+.error-message {
+    background: #fdf2f2;
+    border: 1px solid #fde8e8;
+    color: #dc3545;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+        margin: 0;
+        border-radius: 0;
+        height: 100vh;
+    }
+
+    .left-side {
+        padding: 20px;
+        flex: none;
+        height: 30vh;
+    }
+
+    .right-side {
+        padding: 20px;
+        flex: none;
+    }
+
+    .form-container {
+        max-width: 100%;
+    }
+
+    .logo {
+        margin-bottom: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .left-side {
+        height: 20vh;
+    }
+
+    h1 {
+        font-size: 24px;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+}

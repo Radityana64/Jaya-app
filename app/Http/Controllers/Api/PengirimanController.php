@@ -188,6 +188,7 @@ class PengirimanController extends Controller
             $validated = $request->validate([
                 'kurir' => 'required|string',
                 'layanan' => 'required|string',
+                'estimasi_pengiriman'=> 'required|string',
                 'biaya_pengiriman' => 'required|numeric'
             ]);
 
@@ -226,6 +227,7 @@ class PengirimanController extends Controller
                 'id_pemesanan' => $pemesanan->id_pemesanan,
                 'kurir' => $validated['kurir'] . ' ' . $validated['layanan'],
                 'biaya_pengiriman' => $validated['biaya_pengiriman'],
+                'estimasi_pengiriman' => $validated['estimasi_pengiriman'],
                 'status_pengiriman' => 'Belum_Bayar',
             ]);
                 

@@ -124,11 +124,7 @@ class AuthController extends Controller
                 ->firstOrFail();
 
             return response()->json([           
-                'id_user' => $dataPelanggan->id_user,
-                'nama_lengkap' => $dataPelanggan->nama_lengkap,
-                'email' => $dataPelanggan->email,
-                'username' => $dataPelanggan->pelanggan->username,
-                'telepon' => $dataPelanggan->pelanggan->telepon,
+                'data'=>$dataPelanggan,
             ]);            
         } catch (\Exception $e) {
             return response()->json(['error' => 'Pelanggan not found'], 404);
@@ -145,6 +141,92 @@ class AuthController extends Controller
 
         } catch (\Exception $e) {
             return response()->json(['error' => 'Gagal mengambil data pelanggan'], 500);
+        }
+    }
+
+    public function updateProfil(Request $request)
+    {
+        try {
+            // Dapatkan pelanggan yang sedang login
+            $pelanggan = Auth::user()->pelanggan;
+
+            // Validasi input
+            $validator = Validator::make($request->all(), [
+                'nama_lengkap' => 'sometimes|string|max:255',
+                'email' => 'sometimes|email|unique:tb_users,email,' . Auth::id() . ',id_user',
+                'username' => 'sometimes|string|unique:tb_pelanggan,username,' . $pelanggan->id_pelanggan . ',id_pelanggan',
+                'telepon' => 'sometimes|string|max:20',
+            ]);
+
+            // Jika validasi gagal
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Update User
+            $user = Auth::user();
+            $userUpdateData = [];
+            
+            if ($request->has('nama_lengkap')) {
+                $userUpdateData['nama_lengkap'] = $request->nama_lengkap;
+            }
+            
+            if ($request->has('email')) {
+                $userUpdateData['email'] = $request->email;
+            }
+
+            // Update user jika ada data
+            if (!empty($userUpdateData)) {
+                $user->update($userUpdateData);
+            }
+
+            // Update Pelanggan
+            $pelangganUpdateData = [];
+            
+            if ($request->has('username')) {
+                $pelangganUpdateData['username'] = $request->username;
+            }
+            
+            if ($request->has('telepon')) {
+                $pelangganUpdateData['telepon'] = $request->telepon;
+            }
+
+            // Update pelanggan jika ada data
+            if (!empty($pelangganUpdateData)) {
+                $pelanggan->update($pelangganUpdateData);
+            }
+
+            // Refresh data
+            $user->refresh();
+            $pelanggan->refresh();
+
+            // Siapkan response
+            $responseData = [
+                'success' => true,
+                'message' => 'Profil berhasil diperbarui',
+                'user' => [
+                    'id_user' => $user->id_user,
+                    'nama_lengkap' => $user->nama_lengkap,
+                    'email' => $user->email,
+                    'username' => $pelanggan->username,
+                    'telepon' => $pelanggan->telepon
+                ]
+            ];
+
+            return response()->json($responseData);
+
+        } catch (\Exception $e) {
+            // Log error untuk debugging
+            \Log::error('Update Profil Error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat memperbarui profil',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 

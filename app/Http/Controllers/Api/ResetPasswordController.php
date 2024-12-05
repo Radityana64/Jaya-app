@@ -34,10 +34,10 @@ class ResetPasswordController extends Controller
                             ->fromUser($user);
 
             // Generate reset URL dengan JWT token
-            $resetUrl = url("/reset-password/{$token}");
+            $resetUrl = url("/password/reset/{$token}");
 
             // Kirim email
-            Mail::send('emails.reset-password', ['resetUrl' => $resetUrl], function($message) use ($user) {
+            Mail::send('auth.send-email', ['resetUrl' => $resetUrl], function($message) use ($user) {
                 $message->to($user->email);
                 $message->subject('Reset Password Request');
             });
@@ -94,7 +94,7 @@ class ResetPasswordController extends Controller
             $user = JWTAuth::setToken($token)->authenticate();
 
             // Update password
-            $user->password = bcrypt($request->password);
+            $user->password = $request->password;
             $user->save();
 
             // Invalidate token setelah digunakan

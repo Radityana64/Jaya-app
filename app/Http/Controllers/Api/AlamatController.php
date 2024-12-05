@@ -153,21 +153,21 @@ class AlamatController extends Controller
     }
 
 
-    public function getProvinsiList()
+   public function ambilProvinsi()
     {
-        $provinsi = Provinsi::all();
-        return response()->json($provinsi, 200);
+        $provinsi = Provinsi::all(); // Sesuaikan dengan model Anda
+        return response()->json($provinsi);
     }
 
-    public function getKotaByProvinsi($id_provinsi)
+    public function getKabupaten($provinsiId)
     {
-        $kota = Kota::where('id_provinsi', $id_provinsi)->get();
-        return response()->json($kota, 200);
+        $kabupaten = Kota::where('id_provinsi', $provinsiId)->get(); // Sesuaikan dengan model Anda
+        return response()->json($kabupaten);
     }
 
-    public function getKodePosByKota($id_kota)
+    public function getKodePos($kabupatenId)
     {
-        $kodePOS = KodePos::where('id_kota', $id_kota)->get();
-        return response()->json($kodePOS, 200);
+        $kodePos = KodePos::where('id_kota', $kabupatenId)->get(); // Sesuaikan dengan model Anda
+        return response()->json($kodePos);
     }
 }

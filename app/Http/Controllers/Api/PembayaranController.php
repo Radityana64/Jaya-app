@@ -11,6 +11,7 @@ use App\Models\ProdukVariasi;
 use App\Models\Pelanggan;
 use App\Models\PenggunaanVoucher;
 use Midtrans\Snap;
+use Midtrans\Config;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -27,134 +28,113 @@ class PembayaranController extends Controller
         // \Midtrans\Config::$is3ds = true; // jika Anda ingin menggunakan 3D Secure
     }    
 
-    public function createPayment(Request $request, $id_pemesanan)
+    public function createPayment(Request $request)
     {
-        try {
-            $order = Pemesanan::with([
-                'detailPemesanan.produkVariasi.produk', 
-                'pelanggan', 
-                'pengiriman', 
-                'penggunaanVoucher.voucherPelanggan.voucher'
-            ])->findOrFail($id_pemesanan);
+        // Tambahkan detailed logging
+        \Log::info('Received Payment Request Data:', $request->all());
 
-            // Cek status pemesanan
-            if ($order->status_pemesanan !== 'Keranjang') {
-                return response()->json([
-                    'error' => 'Status pesanan tidak valid untuk pembayaran'
-                ], 400);
-            }
+        $validator = Validator::make($request->all(), [
+            'order_id' => 'required|string',
+            'total_amount' => 'required|numeric|min:0',
+            'items' => 'required|array',
+            'items.*.id' => 'required',
+            'items.*.price' => 'required|numeric|min:0',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.name' => 'required|string',
+            'address' => 'required|string',
+            'shipping_cost' => 'nullable|numeric|min:0',
+            'voucher_discount' => 'nullable|numeric|min:0',
+            'firstName' => 'required|string',
+            'email' => 'required|email',
+            'phone' => 'required|string',
+        ]);
 
-            // Persiapan items
-            $items = [];
-            foreach ($order->detailPemesanan as $detail) {
-                $items[] = [
-                    'id' => $detail->id_produk_variasi,
-                    'price' => $detail->produkVariasi->harga,
-                    'quantity' => $detail->jumlah,
-                    'name' => $detail->produkVariasi->produk->nama_produk
-                ];
-            }
+        // Jika validasi gagal, log detail error
+        if ($validator->fails()) {
+            \Log::error('Validation Errors:', [
+                'errors' => $validator->errors()->toArray()
+            ]);
 
-            // Tambahkan biaya pengiriman
-            $items[] = [
-                'id' => 'SHIPPING-FEE',
-                'price' => $order->pengiriman->biaya_pengiriman,
+            return response()->json([
+                'errors' => $validator->errors(),
+                'message' => 'Validation failed',
+                'received_data' => $request->all()
+            ], 422);
+        }
+        // Ambil data dari permintaan
+        $orderId = $request->input('order_id');
+        $totalAmount = $request->input('total_amount');
+        $items = $request->input('items');
+        $address = $request->input('address');
+        $shippingCost = $request->input('shipping_cost', 0);
+        $voucherDiscount = $request->input('voucher_discount', 0);
+        $firstName = $request->input('firstName');
+        $email = $request->input('email');
+        $phone = $request->input('phone');
+
+        $transactionDetails = [
+            'order_id' => 'ORDER-' . $orderId . '-' . time(),
+            'gross_amount' => $totalAmount, // Pastikan dalam integer
+        ];
+
+        $itemDetails = [];
+        foreach ($items as $item) {
+            $itemDetails[] = [
+                'id' => $item['id'],
+                'price' => $item['price'],
+                'quantity' => $item['quantity'],
+                'name' => $item['name'],
+            ];
+        }
+
+        // Tambahkan biaya pengiriman dan diskon voucher sebagai item detail
+        if ($shippingCost > 0) {
+            $itemDetails[] = [
+                'id' => 'SHIPPING',
+                'price' => $shippingCost,
                 'quantity' => 1,
-                'name' => 'Biaya Pengiriman'
+                'name' => 'Biaya Pengiriman',
             ];
+        }
 
-            // Menghitung total harga
-            $total_harga = $order->total_harga;
-
-            // Cek apakah ada penggunaan voucher
-            if ($order->penggunaanVoucher->isNotEmpty()) {
-                // Ambil voucher yang digunakan (asumsi hanya satu voucher yang digunakan)
-                $voucher = $order->penggunaanVoucher->first()->voucherPelanggan->voucher;
-
-                // Hitung diskon
-                $diskon = ($total_harga * $voucher->diskon) / 100;
-                
-                // Tambahkan item diskon
-                $items[] = [
-                    'id' => 'VOUCHER-DISCOUNT',
-                    'price' => -$diskon,
-                    'quantity' => 1,
-                    'name' => 'Diskon: ' . $voucher->nama_voucher
-                ];
-
-                // Kurangi total harga dengan diskon
-                $total_harga -= $diskon;
-            }
-
-            // Tambahkan biaya pengiriman ke total harga
-            $total_harga += $order->pengiriman->biaya_pengiriman;
-
-            // Detail transaksi
-            $transaction_details = [
-                'order_id' => 'ORDER-' . $order->id_pemesanan . '-' . time(),
-                'gross_amount' => $total_harga
+        if ($voucherDiscount > 0) {
+            $itemDetails[] = [
+                'id' => 'VOUCHER_DISCOUNT',
+                'price' => -$voucherDiscount, // Diskon menggunakan harga negatif
+                'quantity' => 1,
+                'name' => 'Diskon Voucher',
             ];
+        }
 
-            // Detail pelanggan
-            $customer_details = [
-                'first_name' => $order->pelanggan->nama_pelanggan,
-                'email' => $order->pelanggan->email,
-                'phone' => $order->pelanggan->telepon,
+        $payload = [
+            'transaction_details' => $transactionDetails,
+            'item_details' => $itemDetails,
+            'customer_details' => [
+                'first_name' => $firstName,
+                'email' => $email,
+                'phone' => $phone,
                 'billing_address' => [
-                    'address' => $order->alamat_pengiriman
-                ]
-            ];
+                    'address' => $address,
+                ],
+                'shipping_address' => [
+                    'address' => $address,
+                ],
+            ],
+        ];
 
-            // Parameter Midtrans
-            $midtrans_params = [
-                'transaction_details' => $transaction_details,
-                'customer_details' => $customer_details,
-                'item_details' => $items,
-                'finish' => route('payment.success', $order->id_pemesanan),
-                'error' => route('payment.failed', $order->id_pemesanan),
-                'pending' => route('payment.waiting', $order->id_pemesanan)
-            ];
-            
-            // Log parameter untuk debugging
-            Log::info('Midtrans params:', ['params' => $midtrans_params]);
 
-            // Dapatkan Snap Token dari Midtrans
-            $snapToken = Snap::getSnapToken($midtrans_params);
-            
-            // Validasi snap token
-            if (empty($snapToken)) {
-                Log::error('Empty snap token received from Midtrans');
-                throw new \Exception('Failed to get snap token from Midtrans');
-            }
+        // Debugging
+        \Log::info('Midtrans Payload:', $payload);
 
-            // Buat record pembayaran
-            $pembayaran = Pembayaran::create([
-                'id_pemesanan' => $order->id_pemesanan,
-                'snap_token' => $snapToken,
-                'status_pembayaran' => 'Pending',
-                'total_pembayaran' => $transaction_details['gross_amount']
-            ]);
-
-            // Perbarui status pemesanan
-            $order->status_pemesanan = 'Proses_Pembayaran';
-            $order->save();
-
-            return response()->json([
-                'snap_token' => $snapToken,
-                'order' => $order,
-                'order_id' => $order->id_pemesanan,
-                'total_harga' => $total_harga
-            ]);
-
+        // Mengambil Snap token
+        try {
+            $snapToken = Snap::getSnapToken($payload);
+            return response()->json(['snap_token' => $snapToken]);
         } catch (\Exception $e) {
-            // Log error terperinci
-            Log::error('Payment creation error: ', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
+            \Log::error('Midtrans Token Error: ' . $e->getMessage());
             return response()->json([
-                'error' => 'Gagal membuat pembayaran: ' . $e->getMessage()
+                'error' => 'Failed to generate payment token',
+                'message' => $e->getMessage()
             ], 500);
         }
     }
@@ -212,6 +192,7 @@ class PembayaranController extends Controller
                 $payment->metode_pembayaran = $payment_type;
                 $payment->total_pembayaran = $notification['gross_amount'];
                 $payment->status_pembayaran = $this->mapTransactionStatus($transaction_status);
+                
                 
                 if ($transaction_status == 'settlement' || $transaction_status == 'capture') {
                     $payment->waktu_pembayaran = date('Y-m-d H:i:s', strtotime($notification['transaction_time']));
@@ -359,5 +340,45 @@ class PembayaranController extends Controller
                 'snap_token' => $pembayaran->snap_token
             ]
         ]);
+    }
+    public function storeSnapToken(Request $request)
+    {
+        // Validate input
+        $request->validate([
+            'snap_token' => 'required|string',
+        ]);
+
+        $snap_token = $request->input('snap_token');
+
+        // Log for debugging
+        Log::info('Received Snap Token:', ['snap_token' => $snap_token]);
+
+        try {
+            // Assuming you have an order_id sent in the request
+            $order_id = $request->input('order_id'); // Get order_id from request
+
+            // Find or create payment entry
+            $payment = Pembayaran::where('id_pemesanan', $order_id)->first();
+
+            if (!$payment) {
+                $payment = new Pembayaran();
+                $payment->id_pemesanan = $order_id;
+            }
+
+            // Save Snap token
+            $payment->snap_token = $snap_token;
+            $payment->save();
+
+            // Log success
+            Log::info('Snap token saved successfully', ['order_id' => $order_id]);
+
+            return response()->json(['status' => 'success', 'message' => 'Snap token saved successfully.'], 200);
+        } catch (\Exception $e) {
+            Log::error('Error saving Snap token:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json(['status' => 'error', 'message' => 'Failed to save Snap token.'], 500);
+        }
     }
 }

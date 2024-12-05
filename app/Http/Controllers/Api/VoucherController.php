@@ -157,7 +157,8 @@ class VoucherController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'id_pemesanan' => 'required|exists:tb_pemesanan,id_pemesanan',
-            'id_voucher' => 'required|exists:tb_voucher,id_voucher'
+            'id_voucher' => 'required|exists:tb_voucher,id_voucher',
+            'jumlah_diskon' => 'required|min:0'
         ]);
 
         if ($validator->fails()) {
@@ -171,6 +172,7 @@ class VoucherController extends Controller
             // Ambil pemesanan dan voucher
             $pemesanan = Pemesanan::findOrFail($request->id_pemesanan);
             $voucher = Voucher::findOrFail($request->id_voucher);
+            $gunakanVoucher = $request->jumlah_diskon;
 
             // Validasi status voucher
             $this->validasiVoucher($voucher, $pemesanan);
@@ -188,7 +190,8 @@ class VoucherController extends Controller
                 ], 400);
             }
                 
-            $this->prosesVoucher($pemesanan, $voucherPelanggan, $voucher);
+            $this->prosesVoucher($pemesanan, $voucherPelanggan, $voucher, $gunakanVoucher);
+
 
             return response()->json([
                 'success' => true,
@@ -230,12 +233,13 @@ class VoucherController extends Controller
     }    
     
     // Proses Penggunaan Voucher
-    private function prosesVoucher(Pemesanan $pemesanan, VoucherPelanggan $voucherPelanggan, Voucher $voucher)
+    private function prosesVoucher(Pemesanan $pemesanan, VoucherPelanggan $voucherPelanggan, Voucher $voucher, $gunakanVoucher)
     {
         // Catat penggunaan voucher
         $penggunaanVoucher = PenggunaanVoucher::create([
             'id_voucher_pelanggan' => $voucherPelanggan->id_voucher_pelanggan,
             'id_pemesanan' => $pemesanan->id_pemesanan,
+            'jumlah_diskon' => $gunakanVoucher,
             'tanggal_pemakaian' => now()
         ]);
 

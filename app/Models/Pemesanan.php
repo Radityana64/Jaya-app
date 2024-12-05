@@ -42,7 +42,6 @@ class Pemesanan extends Model
     }
     public function penggunaanVoucher()
     {
-        return $this->hasMany(PenggunaanVoucher::class, 'id_pemesanan');
+        return $this->hasOne(PenggunaanVoucher::class, 'id_pemesanan');
     }
-
 }

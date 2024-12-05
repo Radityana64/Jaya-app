@@ -18,6 +18,7 @@ class PenggunaanVoucher extends Model
     protected $fillable=[
         'id_voucher_pelanggan',
         'id_pemesanan',
+        'jumlah_diskon',
         'tanggal_pemakaian',
     ];
 

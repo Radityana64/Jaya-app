@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="api-token" content="{{ session('auth.token') }}">
     <title>Pembayaran</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="text/javascript" src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="SB-Mid-client-1JTCrR9hP3kq-wie"></script>
@@ -42,45 +43,9 @@
         }
 
         function getJwtToken() {
-    // Coba ambil token dari berbagai sumber
-    let token = 
-        sessionStorage.getItem('auth_token') || 
-        sessionStorage.getItem('jwt_token') || 
-        localStorage.getItem('auth_token');
-
-    // Log untuk debugging
-    console.log('Token sources:', {
-        sessionStorage_auth_token: sessionStorage.getItem('auth_token'),
-        sessionStorage_jwt_token: sessionStorage.getItem('jwt_token'),
-        localStorage_auth_token: localStorage.getItem('auth_token')
-    });
-
-    // Tambahkan pengecekan tambahan
-    if (!token) {
-        // Coba ambil dari data login yang disimpan
-        const userInfoStr = sessionStorage.getItem('user_info');
-        if (userInfoStr) {
-            try {
-                const userInfo = JSON.parse(userInfoStr);
-                token = userInfo.token; // Sesuaikan dengan struktur respons login Anda
-            } catch (error) {
-                console.error('Error parsing user info:', error);
-            }
+            return document.querySelector('meta[name="api-token"]').getAttribute('content');
         }
-    }
 
-    // Log token yang ditemukan
-    console.log('Retrieved JWT Token:', token);
-
-    // Tambahkan validasi token sederhana
-    if (!token || token === 'undefined') {
-        // Redirect ke halaman login jika token tidak valid
-        window.location.href = '/login';
-        return null;
-    }
-
-    return token;
-}
         async function initiatePayment() {
             const payButton = document.getElementById('payButton');
     payButton.disabled = true;

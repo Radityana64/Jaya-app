@@ -21,6 +21,7 @@ class Pengiriman extends Model
         'id_pemesanan',
         'kurir',
         'biaya_pengiriman',
+        'estimasi_pengiriman',
         'status_pengiriman',
         'tanggal_pengiriman',
         'tanggal_diterima',

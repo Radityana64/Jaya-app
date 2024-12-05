@@ -18,7 +18,7 @@ class AlamatDetailController extends Controller
      */
     public function getAlamatByIdPelanggan($id)
     {
-        $alamat = Alamat::with(['kodePos', 'pelanggan'])
+        $alamat = Pelanggan::with(['alamat.kodePos', 'alamat'])
             ->where('id_pelanggan', $id)
             ->get();
 
@@ -51,25 +51,70 @@ class AlamatDetailController extends Controller
         }
 
         // Ambil alamat berdasarkan ID pelanggan
-        $alamat = Alamat::with(['kodePos', 'pelanggan'])
+        $alamat = Alamat::with(['kodePos.kota.provinsi'])
             ->where('id_pelanggan', $pelanggan->id_pelanggan)
             ->get();
 
+        $formatAlamat = $alamat->map(function ($item){
+            return [
+                'id_alamat' => $item->id_alamat,
+                'id_pelanggan' => $item->id_pelanggan,
+                'nama_jalan' => $item->nama_jalan,
+                'detail_lokasi' => $item->detail_lokasi,
+                'kode_pos' => [
+                    'id_kode_pos' => $item->kodePos->id_kode_pos,
+                    'nama_kota' => $item->kodePos->kota->nama_kota ?? '', // Ensure to handle null
+                    'nama_provinsi' => $item->kodePos->kota->provinsi->provinsi ?? '', // Ensure to handle null
+                    'kode_pos' => $item->kodePos->kode_pos,
+                ],
+            ];
+        });
         return response()->json([
             'status' => 'success',
-            'data' => $alamat
+            'data' => $formatAlamat
         ], 200);
+    }
+
+    public function getAlamatByIdAlamat(Request $request, $id_alamat)
+    {
+        $alamat = Alamat::with(['kodePos.kota.provinsi'])
+        ->findOrFail($id_alamat);
+        // ->where('id_alamat', $id_alamat)
+        // ->get();
+
+        // $formatAlamat = $alamat->map(function($data){
+        //     return[
+        //         'id_alamat'=> $data->id_alamat,
+        //         'id_pelanggan'=> $data->id_alamat, 
+        //         'nama_jalan' => $data->nama_jalan,
+        //         'detail_lokasi' => $data->detail_lokasi,
+        //         'kode_pos' => [
+        //             'id_kode_pos' => $data->kodePos->id_kode_pos,
+        //             'nama_kota' => $data->kodePos->kota->nama_kota ?? '', // Ensure to handle null
+        //             'nama_provinsi' => $data->kodePos->kota->provinsi->provinsi ?? '', // Ensure to handle null
+        //             'kode_pos' => $data->kodePos->kode_pos,
+        //         ],
+        //     ];
+        // });
+        return response()->json([
+            'status'=>true,
+            'data'=>$alamat
+        ]);
+
     }
 
     // Create a new address
     public function store(Request $request)
     {
+        $pelanggan = Auth::user()->pelanggan;
+
         $validatedData = $request->validate([
-            'id_pelanggan' => 'required|exists:tb_pelanggan,id_pelanggan',
             'id_kode_pos' => 'required|exists:tb_kode_pos,id_kode_pos',
             'nama_jalan' => 'required|string|max:255',
             'detail_lokasi' => 'nullable|string|max:255',
         ]);
+
+        $validatedData['id_pelanggan'] = $pelanggan->id_pelanggan;
 
         $address = Alamat::create($validatedData);
 
