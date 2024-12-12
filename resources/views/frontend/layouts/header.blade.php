@@ -101,7 +101,7 @@
                                 <div class="navbar-collapse">	
                                     <div class="nav-inner">	
                                         <ul class="nav main-menu menu navbar-nav">
-                                            <li class=""><a href="#">Home</a></li>
+                                            <li class=""><a href="/">Home</a></li>
                                             <li class=""><a href="#">About Us</a></li>
                                             <li class="active"><a href="/etalase/produk">Products</a><span class="new">New</span></li>												
                                             <li class=""><a href="#">Blog</a></li>	
@@ -134,7 +134,7 @@
         event.preventDefault(); // Mencegah pengiriman form default
         const searchTerm = document.getElementById('searchInput').value.trim();
         if (searchTerm) {
-            window.location.href = `/?search=${encodeURIComponent(searchTerm)}`;
+            window.location.href = `/etalase/produk/?search=${encodeURIComponent(searchTerm)}`;
         }
     });
 

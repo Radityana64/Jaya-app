@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\UlasanController;
 Use App\Http\Controllers\Api\ResetPasswordController;
 use App\Http\Controllers\Api\LaporanController;
 use App\Http\Controllers\Api\VoucherController;
+use App\Http\Controllers\Api\BannerController;
 
 use App\Http\Controllers\Api\GambarController;
 
@@ -50,26 +51,25 @@ Route::prefix('password')->group(function () {
 });
 
 //Kategori 
-Route::get('/kategori', [KategoriController::class, 'index']);
-Route::post('/kategori1', [KategoriController::class, 'storeKategori1']);
-Route::put('/kategori1/{id}', [KategoriController::class, 'updateKategori1']);
-Route::delete('/kategori1/{id}', [KategoriController::class, 'destroyKategori1']);
-
-Route::post('/kategori2', [KategoriController::class, 'storeKategori2']);
-Route::put('/kategori2/{id}', [KategoriController::class, 'updateKategori2']);
-Route::delete('/kategori2/{id}', [KategoriController::class, 'destroyKategori2']);
+Route::get('/kategori', [KategoriController::class, 'getKategori']);
+Route::post('/kategori/create', [KategoriController::class, 'createKategori']);
+Route::get('/kategori/{id}', [KategoriController::class, 'getKategoriById']);
+Route::put('/kategori/update/{id}', [KategoriController::class, 'updateKategori']);
+Route::put('/kategori/status/{id_kategori}', [KategoriController::class, 'updateStatus']);
 
 //Produk
 // Route::middleware(['auth.jwt'])->group(function(){
     Route::get('produk/', [ProdukController::class, 'index']);
     Route::get('produk/{id}', [ProdukController::class, 'show']);
-    // Route::get('/produk-variasi/{id_variation}', [ProdukController::class, 'showVariation']);
+    Route::get('/variasi-produk', [ProdukController::class, 'showVariation']);
+    Route::put('/produk/status/{id}', [ProdukController::class, 'updateStatus']);
+    Route::put('/produk-variasi/status/{variationId}', [ProdukController::class, 'updateVariationStatus']);
 // });
-Route::middleware(['auth.jwt', 'jwt.role:admin'])->group(function(){
+// Route::middleware(['auth.jwt', 'jwt.role:admin'])->group(function(){
     Route::post('produk/tambah/', [ProdukController::class, 'store']);
-    Route::put('produk/edit/{id}', [ProdukController::class, 'updated']);
+    Route::post('produk/edit/{id}', [ProdukController::class, 'update']);
     Route::delete('produk/{id}', [ProdukController::class, 'destroy']);
-});
+// });
 
 //Simpan Data Raja Ongkir Di Database
 Route::prefix('alamat')->group(function () {
@@ -114,6 +114,7 @@ Route::middleware(['auth.jwt'])->group(function(){
     Route::post('ulasan/buat', [UlasanController::class, 'storeUlasan']);
 });
 Route::post('/payments/snap', [PembayaranController::class, 'storeSnapToken']);
+Route::get('/pemesanan/data/master', [PemesananController::class, 'getPemesananMaster']);
     
 //Voucher
 Route::middleware(['auth.jwt'])->group(function(){
@@ -138,8 +139,17 @@ Route::get('ulasan/get-by-produk/{id_produk}', [UlasanController::class, 'getUla
 Route::post('ulasan/balasan/{id_ulasan}', [UlasanController::class, 'SimpanBalasan'])->middleware('auth.jwt', 'jwt.role:admin,pemilik_toko');
 
 //Laporan 
-Route::post('/laporan/penjualan', [LaporanController::class, 'getLaporanPenjualan'])->middleware('auth.jwt', 'jwt.role:admin,pemilik_toko');
+Route::post('/laporan/penjualan', [LaporanController::class, 'getLaporanPenjualan']);
+// ->middleware('auth.jwt', 'jwt.role:admin,pemilik_toko');
 
 //Ekstensi + Coba Coba
 Route::post('upload-gambar', [GambarController::class, 'uploadGambar']);
 Route::get('ambil-data', [AlamatController::class, 'ambilData']);
+
+
+
+Route::post('/banner/create', [BannerController::class, 'create']);
+Route::put('/banners/{id}', [BannerController::class, 'update']);
+Route::patch('/banners/nonaktif/{id}', [BannerController::class, 'deactivate']);
+Route::get('/banners/aktif', [BannerController::class, 'getActiveBanners']);
+Route::get('/banners/aktif/{id}', [BannerController::class, 'getActiveBannersById']);

@@ -22,7 +22,8 @@ class Pelanggan extends model
         'username',
         'telepon',
         'tanggal_dibuat',
-        'tanggal_diperbarui'
+        'tanggal_diperbarui',
+        'status',
     ];
 
     public function pemesanan(){

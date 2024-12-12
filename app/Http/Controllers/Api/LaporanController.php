@@ -9,7 +9,7 @@ use App\Models\Pembayaran;
 use App\Models\DetailPemesanan;
 use App\Models\ProdukVariasi;
 use App\Models\Kategori1;
-use App\Models\Kategori2;
+use App\Models\Kategori;
 use App\Models\DetailProdukVariasi;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -85,21 +85,21 @@ class LaporanController extends Controller
                 'tb_detail_pemesanan.id_pemesanan',
                 'tb_detail_pemesanan.id_produk_variasi',
                 'tb_produk_variasi.id_produk',
-                'tb_produk.id_kategori_2',
-                'tb_kategori_2.id_kategori_1',
+                'tb_produk.id_kategori',
+                'tb_kategori.id_induk',
                 'tb_produk.nama_produk',
                 DB::raw('SUM(tb_detail_pemesanan.jumlah) as jumlah_terjual'),
                 DB::raw('SUM(tb_detail_pemesanan.sub_total_produk) as total_pendapatan')
             )
             ->join('tb_produk_variasi', 'tb_detail_pemesanan.id_produk_variasi', '=', 'tb_produk_variasi.id_produk_variasi')
             ->join('tb_produk', 'tb_produk_variasi.id_produk', '=', 'tb_produk.id_produk')
-            ->join('tb_kategori_2', 'tb_produk.id_kategori_2', '=', 'tb_kategori_2.id_kategori_2')
+            ->join('tb_kategori', 'tb_produk.id_kategori', '=', 'tb_kategori.id_kategori')
             ->groupBy(
                 'tb_detail_pemesanan.id_pemesanan',
                 'tb_detail_pemesanan.id_produk_variasi', 
                 'tb_produk_variasi.id_produk', 
-                'tb_produk.id_kategori_2',
-                'tb_kategori_2.id_kategori_1',
+                'tb_produk.id_kategori',
+                'tb_kategori.id_induk',
                 'tb_produk.nama_produk'
             )
             ->get();
@@ -108,11 +108,17 @@ class LaporanController extends Controller
     private function prosesDataLaporan($detail_produk)
     {
         $result = [];
-        $kategori1_group = $detail_produk->groupBy('id_kategori_1');
+        
+        // Kelompokkan berdasarkan kategori induk (level 1)
+        $kategori1_group = $detail_produk->groupBy(function($item) {
+            return $item->id_induk ?? $item->id_kategori;
+        });
 
         foreach ($kategori1_group as $id_kategori_1 => $kategori1_items) {
             $kategori1Data = $this->inisialisasiKategori1($id_kategori_1);
-            $kategori2_group = $kategori1_items->groupBy('id_kategori_2');
+            
+            // Kelompokkan berdasarkan kategori (level 2)
+            $kategori2_group = $kategori1_items->groupBy('id_kategori');
 
             foreach ($kategori2_group as $id_kategori_2 => $kategori2_items) {
                 $kategori2Data = $this->inisialisasiKategori2($id_kategori_2);
@@ -137,9 +143,10 @@ class LaporanController extends Controller
 
     private function inisialisasiKategori1($id_kategori_1)
     {
+        $kategori = Kategori::find($id_kategori_1);
         return [
             'id_kategori_1' => $id_kategori_1,
-            'nama_kategori_1' => Kategori1::find($id_kategori_1)->nama_kategori,
+            'nama_kategori_1' => $kategori ? $kategori->nama_kategori : 'Kategori Tidak Dikenal',
             'jumlah_terjual' => 0,
             'total_pendapatan' => 0,
             'laba' => 0,
@@ -149,9 +156,10 @@ class LaporanController extends Controller
 
     private function inisialisasiKategori2($id_kategori_2)
     {
+        $kategori = Kategori::find($id_kategori_2);
         return [
             'id_kategori_2' => $id_kategori_2,
-            'nama_kategori_2' => Kategori2::find($id_kategori_2)->nama_kategori,
+            'nama_kategori_2' => $kategori ? $kategori->nama_kategori : 'Kategori Tidak Dikenal',
             'jumlah_terjual' => 0,
             'total_pendapatan' => 0,
             'laba' => 0,

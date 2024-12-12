@@ -18,16 +18,17 @@ class Produk extends Model
     const UPDATED_AT = 'tanggal_diperbarui';
     
     protected $fillable = [
-        'id_kategori_2',
+        'id_kategori',
         'nama_produk',
         'deskripsi',
+        'status',
         'tanggal_dibuat',
         'tanggal_diperbarui',
     ];
     
-    public function kategori2()
+    public function kategori()
     {
-        return $this->belongsTo(Kategori2::class, 'id_kategori_2');
+        return $this->belongsTo(Kategori::class, 'id_kategori');
     }
     public function gambarProduk()
     {

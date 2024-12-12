@@ -36,8 +36,8 @@
       <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionSidebar">
         <div class="bg-white py-2 collapse-inner rounded">
           <h6 class="collapse-header">Banner Options:</h6>
-          <a class="collapse-item" href="#">Banners</a>
-          <a class="collapse-item" href="#">Add Banners</a>
+          <a class="collapse-item" href="/banner">Banners</a>
+          <a class="collapse-item" href="{{route('banner.create')}}">Add Banners</a>
         </div>
       </div>
     </li>
@@ -58,7 +58,7 @@
           <div class="bg-white py-2 collapse-inner rounded">
             <h6 class="collapse-header">Category Options:</h6>
             <a class="collapse-item" href="{{route ('index.kategori') }}">Category</a>
-            <a class="collapse-item" href="#">Add Category</a>
+            <a class="collapse-item" href="{{route ('category.create')}}">Add Category</a>
           </div>
         </div>
     </li>
@@ -72,7 +72,7 @@
           <div class="bg-white py-2 collapse-inner rounded">
             <h6 class="collapse-header">Product Options:</h6>
             <a class="collapse-item" href="{{route ('index.produk') }}">Products</a>
-            <a class="collapse-item" href="#">Add Product</a>
+            <a class="collapse-item" href="{{route ('produk.create') }}">Add Product</a>
           </div>
         </div>
     </li>
@@ -92,6 +92,12 @@
             <span>Reviews</span></a>
     </li>
 
+    <li class="nav-item">
+      <a class="nav-link" href="/voucher">
+          <i class="fas fa-table"></i>
+          <span>Coupon</span></a>
+    </li>
+
 
     <!-- Divider -->
     <hr class="sidebar-divider d-none d-md-block">
@@ -99,11 +105,13 @@
     <div class="sidebar-heading">
         General Settings
     </div>
+
     <li class="nav-item">
-      <a class="nav-link" href="#">
-          <i class="fas fa-table"></i>
-          <span>Coupon</span></a>
+      <a class="nav-link" href="/laporan">
+          <i class="fas fa-fw fa-chart-area"></i>
+          <span>Report</span></a>
     </li>
+    
      <!-- Users -->
      <li class="nav-item">
         <a class="nav-link" href="/pelanggan">

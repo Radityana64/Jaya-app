@@ -208,20 +208,131 @@ class PemesananController extends Controller
         $pemesanan->save();
     }
     
-    // public function getPemesanan(Request $request)
-    // {
-    //     $pelanggan = Auth::user()->pelanggan;
+    public function getPemesananMaster()
+    {
+        $pemesanan = Pemesanan::with([
+            'pelanggan',
+            'pembayaran',
+            'pengiriman',
+            'detailPemesanan.produkVariasi' => function($query) {
+                $query->with([
+                    'gambarVariasi',
+                    'produk.gambarProduk',
+                    'detailProdukVariasi.opsiVariasi.tipeVariasi'
+                ]);
+            },
+            'ulasan' => function($query) {
+                $query->with(['balasan']); // Memuat relasi balasan
+            },
+            'penggunaanVoucher'
+        ])
+        ->where('status_pemesanan', '!=', 'keranjang')
+        ->get();
 
-    //     $pemesanan = Pemesanan::with('pembayaran', 'pengiriman','detailPemesanan.produkVariasi.gambarVariasi', 'detailPemesanan.produkVariasi.produk.gambarProduk', 
-    //     'detailPemesanan.produkVariasi.detailProdukVariasi.opsiVariasi.tipeVariasi')
-    //     ->where('id_pelanggan', $pelanggan->id_pelanggan)
-    //     ->firstOrFail();
+        $formattedPemesanan = [];
 
-    //     return response()->json([
-    //         'status'=>true,
-    //         'data'=>$pemesanan,
-    //     ], 200);
-    // }
+        foreach ($pemesanan as $order) {
+            $formattedCart = [
+                'id_pemesanan' => $order->id_pemesanan,
+                'id_pelanggan' => $order->id_pelanggan,
+                'nama_pelanggan'=> $order->pelanggan->username,
+                'tanggal_pemesanan' => $order->tanggal_pemesanan,
+                'alamat_pengiriman' => $order->alamat_pengiriman,
+                'total_harga' => $order->total_harga,
+                'status_pemesanan' => $order->status_pemesanan,
+                'detail_pemesanan' => [],
+                'pembayaran' => $order->pembayaran ? [
+                    'id_pembayaran' => $order->pembayaran->id_pembayaran,
+                    'metode_pembayaran' => $order->pembayaran->metode_pembayaran,
+                    'status_pembayaran' => $order->pembayaran->status_pembayaran,
+                    'total_pembayaran' => $order->pembayaran->total_pembayaran,
+                    'tanggal_pembayaran' => $order->pembayaran->waktu_pembayaran
+                ] : null,
+                'potongan_harga' => $order->penggunaanVoucher ? $order->penggunaanVoucher->jumlah_diskon : null,
+                'pengiriman' => $order->pengiriman ? [
+                    'id_pengiriman' => $order->pengiriman->id_pengiriman,
+                    'kurir' => $order->pengiriman->kurir,
+                    'status_pengiriman' => $order->pengiriman->status_pengiriman,
+                    'biaya_pengiriman' => $order->pengiriman->biaya_pengiriman
+                ] : null
+            ];
+
+            foreach ($order->detailPemesanan as $detail) {
+                // Pastikan produkVariasi tidak null
+                if (!$detail->produkVariasi) {
+                    continue;
+                }
+
+                // Ambil gambar variasi, jika tidak ada ambil gambar produk pertama
+                $gambarVariasi = null;
+                if ($detail->produkVariasi->gambarVariasi && $detail->produkVariasi->gambarVariasi->count() > 0) {
+                    $gambarVariasi = $detail->produkVariasi->gambarVariasi->first()->gambar;
+                } elseif ($detail->produkVariasi->produk && 
+                        $detail->produkVariasi->produk->gambarProduk && 
+                        $detail->produkVariasi->produk->gambarProduk->count() > 0) {
+                    $gambarVariasi = $detail->produkVariasi->produk->gambarProduk->first()->gambar;
+                }
+
+                // Membuat string variasi
+                $variations = [];
+                if ($detail->produkVariasi->detailProdukVariasi) {
+                    foreach ($detail->produkVariasi->detailProdukVariasi as $produkVariasi) {
+                        // Pastikan opsiVariasi dan tipeVariasi tidak null
+                        if ($produkVariasi->opsiVariasi && 
+                            $produkVariasi->opsiVariasi->tipeVariasi) {
+                            $variations[] = $produkVariasi->opsiVariasi->tipeVariasi->nama_tipe . ': ' . $produkVariasi->opsiVariasi->nama_opsi;
+                        }
+                    }
+                }
+                $variationsString = implode(', ', $variations);
+
+                // Pastikan produk tidak null
+                $namaProduk = $detail->produkVariasi->produk ? $detail->produkVariasi->produk->nama_produk : 'Produk Tidak Dikenal';
+
+                $formattedCart['detail_pemesanan'][] = [
+                    'id_detail_pemesanan' => $detail->id_detail_pemesanan,
+                    'id_produk_variasi' => $detail->id_produk_variasi,
+                    'id_pemesanan' => $detail->id_pemesanan,
+                    'jumlah' => $detail->jumlah,
+                    'sub_total_produk' => $detail->sub_total_produk,
+                    'produk_variasi' => [
+                        'nama_produk' => $namaProduk,
+                        'id_produk_variasi' => $detail->produkVariasi->id_produk_variasi,
+                        'id_produk' => $detail->produkVariasi->id_produk,
+                        'stok' => $detail->produkVariasi->stok,
+                        'berat' => $detail->produkVariasi->berat,
+                        'harga' => $detail->produkVariasi->harga,
+                        'gambar' => $gambarVariasi,
+                        'variasi' => $variationsString
+                    ],
+                    'ulasan' => $detail->pemesanan->ulasan
+                    ->where('id_produk_variasi', $detail->id_produk_variasi)
+                    ->where('id_pemesanan', $detail->id_pemesanan)
+                    ->map(function ($ulasan) {
+                        return [
+                            'id_ulasan' => $ulasan->id_ulasan,
+                            'id_rating' => $ulasan->id_rating,
+                            'ulasan' => $ulasan->ulasan,
+                            'balasan' => $ulasan->balasan->map(function ($balasan) {
+                                return [
+                                    'id_balasan' => $balasan->id_balasan,
+                                    'balasan' => $balasan->balasan,
+                                ];
+                            }),
+                        ];
+                    }),
+                ];
+            }
+
+            $formattedPemesanan[] = $formattedCart;
+        }
+
+        return response()->json([
+            'status' => true,
+            'data' => $formattedPemesanan,
+        ], 200);
+    }
+
     public function getPemesanan(Request $request)
     {
         $pelanggan = Auth::user()->pelanggan;
@@ -234,11 +345,13 @@ class PemesananController extends Controller
             'pembayaran', 
             'pengiriman',
             'penggunaanVoucher',
-            'ulasan',
+            'ulasan' => function($query) {
+                $query->with(['balasan']); // Memuat relasi balasan
+            },
         ])
         ->where('id_pelanggan', $pelanggan->id_pelanggan)
         ->where('status_pemesanan', '!=', 'keranjang')
-        ->get(); // Ubah dari firstOrFail() ke get()
+        ->get();
 
         $formattedPemesanan = [];
 
@@ -250,7 +363,6 @@ class PemesananController extends Controller
                 'alamat_pengiriman' => $order->alamat_pengiriman,
                 'total_harga' => $order->total_harga,
                 'status_pemesanan' => $order->status_pemesanan,
-                'ulasan' => $order->ulasan ? $order->ulasan : null,
                 'detail_pemesanan' => [],
                 'pembayaran' => $order->pembayaran ? [
                     'id_pembayaran' => $order->pembayaran->id_pembayaran,
@@ -297,7 +409,23 @@ class PemesananController extends Controller
                         'harga' => $detail->produkVariasi->harga,
                         'gambar' => $gambarVariasi,
                         'variasi' => $variationsString
-                    ]
+                    ],
+                    'ulasan' => $detail->pemesanan->ulasan
+                    ->where('id_produk_variasi', $detail->id_produk_variasi)
+                    ->where('id_pemesanan', $detail->id_pemesanan)
+                    ->map(function ($ulasan) {
+                        return [
+                            'id_ulasan' => $ulasan->id_ulasan,
+                            'id_rating' => $ulasan->id_rating,
+                            'ulasan' => $ulasan->ulasan,
+                            'balasan' => $ulasan->balasan->map(function ($balasan) {
+                                return [
+                                    'id_balasan' => $balasan->id_balasan,
+                                    'balasan' => $balasan->balasan,
+                                ];
+                            }),
+                        ];
+                    }),
                 ];
             }
 

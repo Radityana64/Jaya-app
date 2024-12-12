@@ -24,6 +24,7 @@ class ProdukVariasi extends Model
         'berat',
         'hpp',
         'harga',
+        'status',
         'tanggal_dibuat',
         'tanggal_diperbarui',
         'default',

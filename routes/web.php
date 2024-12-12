@@ -18,12 +18,12 @@ use App\Http\Controllers\ProfilViewController;
 */
 
 Route::get('/', function () {
+    return view('frontend.index');
+})->name('index');
+
+Route::get('/etalase/produk', function () {
     return view('frontend.pages.product-grids');
 })->name('produk.grids');
-
-// Route::get('/etalase/produk', function () {
-//     return view('frontend.pages.product-grids');
-// })->name('produk.grids');
 
 Route::get('/tesgambar', function () {
     return view('users.beranda');
@@ -87,11 +87,25 @@ Route::get('/admin', function(){return view('backend.index');})->name('admin');
 
 Route::get('/kategori', function(){return view('backend.category.index');})->name('index.kategori');
 Route::get('/kategori/create', function(){return view('backend.category.create');})->name('category.create');
+Route::get('/kategori/edit/{id}', function(){return view('backend.category.edit');})->name('category.edit');
 
 Route::get('/produk', function(){return view('backend.product.index');})->name('index.produk');
+Route::get('/produk/create', function(){return view('backend.product.create');})->name('produk.create');
+Route::get('/produk/edit/{id}', function(){return view('backend.product.edit');})->name('produk.edit');
 
 Route::get('/pemesanan', function(){return view('backend.order.index');});
 
 Route::get('/ulasan', function(){return view('backend.review.index');});
+Route::get('/ulasan/balas', function(){return view('backend.review.create');})->name('review.reply');
 
-Route::get('/pelanggan', function(){return view('bakcend.users.index');});
+Route::get('/voucher', function(){return view('backend.coupon.index');});
+Route::get('/voucher/create', function(){return view('backend.coupon.create');})->name('voucher.create');
+Route::get('/voucher/edit{id}', function(){return view('backend.coupon.edit');})->name('voucher.edit');
+
+Route::get('/pelanggan', function(){return view('backend.users.index');});
+
+Route::get('/banner', function(){return view('backend.banner.index');});
+Route::get('/banner/create', function(){return view('backend.banner.create');})->name('banner.create');
+Route::get('/banner/edit/{id}', function(){return view('backend.banner.edit');})->name('banner.edit');
+
+Route::get('/laporan', function(){return view('backend.laporan.index');});

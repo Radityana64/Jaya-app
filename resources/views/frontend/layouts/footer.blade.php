@@ -8,8 +8,11 @@
 					<div class="col-lg-5 col-md-6 col-12">
 						<!-- Single Widget -->
 						<div class="single-footer about">
-							<div class="logo">
-								
+						<div class="logo">
+							<a href="/"><img src="/frontend/img/jaya%20logo.jpg" alt="logo" style="width: 33%; height: auto;"></a>
+						</div>
+							<p class="text">Kepercayaan Anda adalah prioritas kami. Kami hadir untuk memberikan pengalaman belanja terbaik, karena setiap pilihan Anda adalah langkah menuju kepuasan</p>
+							<p class="call">Got Question? Call us 24/7<span><a href="https://wa.me/+6281238465833">+62 81238465833</a></span></p>
 						</div>
 						<!-- End Single Widget -->
 					</div>
@@ -47,10 +50,26 @@
 							<h4>Get In Tuch</h4>
 							<!-- Single Widget -->
 							<div class="contact">
-								
+								<ul>
+									<li>H947+5WJ, Cempaga, Bangli, Bangli Regency, Bali 80613</li>
+									<li>jayastudio@gmail.com</li>
+									<li>+62 81238465833</li>
+								</ul>
 							</div>
 							<!-- End Single Widget -->
-							<div class="sharethis-inline-follow-buttons"></div>
+							<div class="social-links">
+								<p>Follow me:</p>
+								<a href="https://www.facebook.com/oman.sidembunut" target="_blank" title="Facebook">
+									<img src="https://img.icons8.com/ios-filled/30/ffffff/facebook.png" alt="Facebook">
+								</a>
+								<a href="https://www.instagram.com/jaya_hangdrum/" target="_blank" title="Instagram">
+									<img src="https://img.icons8.com/ios-filled/30/ffffff/instagram-new.png" alt="Instagram">
+								</a>
+								<a href="https://github.com/Radityana64/Jaya-app" target="_blank" title="GitHub">
+									<img src="https://img.icons8.com/ios-filled/30/ffffff/github.png" alt="GitHub">
+								</a>
+							</div>
+							<!-- <div class="sharethis-inline-follow-buttons"></div> -->
 						</div>
 						<!-- End Single Widget -->
 					</div>
@@ -64,12 +83,12 @@
 					<div class="row">
 						<div class="col-lg-6 col-12">
 							<div class="left">
-								<!-- <p>Copyright © {{date('Y')}} <a href="https://github.com/Prajwal100" target="_blank">Prajwal Rai</a>  -  All Rights Reserved.</p> -->
+								<p>Copyright © {{date('Y')}} <a href="https://github.com/Radityana64/Jaya-app" target="_blank">Jaya Studio</a>  -  All Rights Reserved.</p>
 							</div>
 						</div>
 						<div class="col-lg-6 col-12">
 							<div class="right">
-								<img src="{{asset('backend/img/payments.png')}}" alt="#">
+								
 							</div>
 						</div>
 					</div>

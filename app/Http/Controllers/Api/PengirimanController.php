@@ -203,11 +203,11 @@ class PengirimanController extends Controller
             }
 
             // Get active shopping cart
-            $pemesanan = $this->getPemesananKeranjang($pelanggan);
+            $pemesanan = $this->getPemesananProsesPembayaran($pelanggan);
             if (!$pemesanan) {
                 return response()->json([
-                    'error' => 'Keranjang belanja tidak ditemukan',
-                    'code' => 'CART_NOT_FOUND'
+                    'error' => 'Pesanan tidak ditemukan',
+                    'code' => 'ORDER NOT FOUND'
                 ], 404);
             }
 
@@ -273,6 +273,30 @@ class PengirimanController extends Controller
             return $pemesanan;
         } catch (\Exception $e) {
             Log::error('Error dalam mengambil pemesanan keranjang:', [
+                'pelanggan_id' => $pelanggan->id_pelanggan,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return null;
+        }
+    }
+
+    private function getPemesananProsesPembayaran($pelanggan)
+    {
+        try {
+            $pemesanan = Pemesanan::with(['detailPemesanan.produkVariasi'])
+                ->where('id_pelanggan', $pelanggan->id_pelanggan)
+                ->where('status_pemesanan', 'Proses_Pembayaran')
+                ->orWhere('status_pemesanan', 'Dibayar')
+                ->first();
+                
+            Log::info('Data Pemesanan:', [
+                'pemesanan' => $pemesanan
+            ]); // Tambahkan logging untuk debug
+                
+            return $pemesanan;
+        } catch (\Exception $e) {
+            Log::error('Error dalam mengambil pemesanan:', [
                 'pelanggan_id' => $pelanggan->id_pelanggan,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()

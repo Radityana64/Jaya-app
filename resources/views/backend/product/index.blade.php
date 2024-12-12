@@ -10,7 +10,7 @@
      </div>
     <div class="card-header py-3">
       <h6 class="m-0 font-weight-bold text-primary float-left">Product Lists</h6>
-      <a href="#" class="btn btn-primary btn-sm float-right" data-toggle="tooltip" data-placement="bottom" title="Add Product"><i class="fas fa-plus"></i> Add Product</a>
+      <a href="{{route ('produk.create') }}" class="btn btn-primary btn-sm float-right" data-toggle="tooltip" data-placement="bottom" title="Add Product"><i class="fas fa-plus"></i> Add Product</a>
     </div>
     <div class="card-body">
       <div class="table-responsive">
@@ -19,7 +19,7 @@
             <tr>
               <th>No</th>
               <th>ID Produk</th>
-              <th>Kategori 2</th>
+              <th>Kategori</th>
               <th>Produk</th>
               <th>Gambar</th>
               <th>Action</th>
@@ -69,19 +69,20 @@
 
 @push('styles')
   <link href="{{asset('backend/vendor/datatables/dataTables.bootstrap4.min.css')}}" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.css" />
+  
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
 @endpush
 
 @push('scripts')
-
   <script src="{{asset('backend/vendor/datatables/jquery.dataTables.min.js')}}"></script>
   <script src="{{asset('backend/vendor/datatables/dataTables.bootstrap4.min.js')}}"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/2.1.2/sweetalert.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
   <script>
    $(document).ready(function() {
     // Fetch product data from API
     fetchProducts();
+    setupNonaktifButtons();
 
     function fetchProducts() {
         $.ajax({
@@ -96,6 +97,118 @@
         });
     }
 
+    function setupNonaktifButtons() {
+        // Event delegation for product table nonaktif buttons
+        $('#product-table-body').on('click', '.nonaktifBtn', function() {
+            const productId = $(this).data('id');
+            nonaktifProduct(productId);
+        });
+
+        // Event delegation for product detail table nonaktif buttons
+        $('#product-detail-body').on('click', '.nonaktifBtn', function() {
+            const variationId = $(this).data('id');
+            nonaktifProductVariation(variationId);
+        });
+    }
+
+    function nonaktifProduct(productId) {
+    Swal.fire({
+        title: "Nonaktifkan Produk?",
+        text: "Apakah Anda yakin ingin menonaktifkan produk ini?",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        confirmButtonText: "Ya, Nonaktifkan!",
+        cancelButtonText: "Batal"
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $.ajax({
+                url: `http://127.0.0.1:8000/api/produk/status/${productId}`,
+                method: 'PUT',
+                contentType: 'application/json', // Tambahkan content type
+                data: JSON.stringify({ 
+                    status: 'nonaktif',
+                    id_produk: productId 
+                }), // Gunakan data bukan body
+                success: function(response) {
+                    Swal.fire({
+                        title: "Dinonaktifkan!",
+                        text: "Produk berhasil dinonaktifkan.",
+                        icon: "success"
+                    }).then(() => {
+                        location.reload();
+                    });
+                },
+                error: function(xhr, status, error) {
+                    // Tampilkan pesan error dari server jika ada
+                    const errorMessage = xhr.responseJSON 
+                        ? xhr.responseJSON.message 
+                        : "Terjadi kesalahan saat menonaktifkan produk.";
+                    
+                    Swal.fire({
+                        title: "Gagal!",
+                        text: errorMessage,
+                        icon: "error"
+                    });
+                    
+                    // Log error untuk debugging
+                    console.error('Error details:', xhr.responseJSON);
+                }
+            });
+        }
+    });
+}
+
+function nonaktifProductVariation(variationId) {
+    Swal.fire({
+        title: "Nonaktifkan Variasi Produk?",
+        text: "Apakah Anda yakin ingin menonaktifkan variasi produk ini?",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        confirmButtonText: "Ya, Nonaktifkan!",
+        cancelButtonText: "Batal"
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $.ajax({
+                url: `http://127.0.0.1:8000/api/produk-variasi/status/${variationId}`,
+                method: 'PUT',
+                contentType: 'application/json', // Tambahkan content type
+                data: JSON.stringify({ 
+                    status: 'nonaktif',
+                    id_produk_variasi: variationId 
+                }), // Gunakan data bukan body
+                success: function(response) {
+                    Swal.fire({
+                        title: "Dinonaktifkan!",
+                        text: "Variasi produk berhasil dinonaktifkan.",
+                        icon: "success"
+                    }).then(() => {
+                        location.reload();
+                    });
+                },
+                error: function(xhr, status, error) {
+                    // Tampilkan pesan error dari server jika ada
+                    const errorMessage = xhr.responseJSON 
+                        ? xhr.responseJSON.message 
+                        : "Terjadi kesalahan saat menonaktifkan variasi produk.";
+                    
+                    Swal.fire({
+                        title: "Gagal!",
+                        text: errorMessage,
+                        icon: "error"
+                    });
+                    
+                    // Log error untuk debugging
+                    console.error('Error details:', xhr.responseJSON);
+                }
+            });
+        }
+    });
+}
+
     function getValueOrDefault(value, defaultValue) {
         return value !== null && value !== undefined ? value : defaultValue;
     }
@@ -105,7 +218,7 @@
         let rows = '';
 
         products.forEach((product, index) => {
-            const kategori2Name = getValueOrDefault(product.kategori_2?.nama_kategori, '-');
+            const kategoriName = getValueOrDefault(product.kategori?.nama_kategori, '-');
             const productName = getValueOrDefault(product.nama_produk, '-');
             const productImage = getValueOrDefault(product.gambar_produk[ 0]?.gambar, 'default_image_url');
             const productId = getValueOrDefault(product.id_produk, '-');
@@ -114,17 +227,13 @@
                 <tr>
                     <td>${index + 1}</td>
                     <td>${productId}</td>
-                    <td>${kategori2Name}</td>
+                    <td>${kategoriName}</td>
                     <td>${productName}</td>
                     <td><img src="${productImage}" class="img-fluid" style="max-width:80px" alt="${productName}"></td>
                     <td>
                         <a href="#" class="btn btn-primary btn-sm detailBtn" data-id="${product.id_produk}">Detail</a>
-                        <a href="#" class="btn btn-primary btn-sm">Edit</a>
-                        <form method="POST" action="#" style="display:inline;">
-                            @csrf
-                            @method('DELETE')
-                            <button type="button" class="btn btn-danger btn-sm dltBtn" data-id="${product.id_produk}">Delete</button>
-                        </form>
+                        <a href="{{url('produk/edit/${product.id_produk}')}}" class="btn btn-primary btn-sm">Edit</a>
+                        <button type="button" class="btn btn-danger btn-sm nonaktifBtn" data-id="${product.id_produk}">Nonaktif</button>
                     </td>
                 </tr>
             `;
@@ -132,6 +241,8 @@
 
         tableBody.html(rows);
         $('#product-dataTable').DataTable();
+
+        setupNonaktifButtons();
     }
 
     function populateProductDetailTable(product) {
@@ -142,6 +253,7 @@
             `<a href="${product.detail_produk.url_video}" target="_blank">Watch Video</a>` : 'N/A';
 
         product.produk_variasi.forEach((variation, index) => {
+            const id_variasi_produk = variation.id_produk_variasi;
             const type = variation.detail_produk_variasi.map(v => getValueOrDefault(v.opsi_variasi.tipe_variasi.nama_tipe, '-')).join(', ');
             const option = variation.detail_produk_variasi.map(v => getValueOrDefault(v.opsi_variasi.nama_opsi, '-')).join(', ');
             const images = variation.gambar_variasi.map(img => `<img src="${getValueOrDefault(img.gambar, 'default_image_url')}" class="img-fluid" style="max-width:80px" alt="Variation Image">`).join(' ');
@@ -160,12 +272,8 @@
                     <td>${option}</td>
                     <td>${images}</td>
                     <td>
-                        <a href="#" class="btn btn-primary btn-sm">Edit</a>
-                        <form method="POST" action="#" style="display:inline;">
-                            @csrf
-                            @method('DELETE')
-                            <button type="button" class="btn btn-danger btn-sm dltBtn" data-id="${product.id_produk}">Delete</button>
-                        </form>
+                        <a href="{{url('produk/edit/${product.id_produk}')}}" class="btn btn-primary btn-sm">Edit</a>
+                        <button type="button" class="btn btn-danger btn-sm nonaktifBtn" data-id="${id_variasi_produk}">Nonaktif</button>
                     </td>
                 </tr>
             `;
@@ -173,6 +281,8 @@
 
         detailBody.html(rows);
         $('#product-detail-table').DataTable();
+
+        setupNonaktifButtons();
     }
 
     // Show product details
@@ -201,27 +311,6 @@
     $('#back-to-list').on('click', function() {
         $('#product-detail').hide();
         $('#product-list').show();
-    });
-
-    // Sweet alert for delete confirmation
-    $(document).on('click', '.dltBtn', function(e) {
-        e.preventDefault();
-        const form = $(this).closest('form');
-        const dataID = $(this).data('id');
-        swal({
-            title: "Are you sure?",
-            text: "Once deleted, you will not be able to recover this data!",
-            icon: "warning",
-            buttons: true,
-            dangerMode: true,
-        })
-        .then((willDelete) => {
-            if (willDelete) {
-                form.submit();
-            } else {
-                swal("Your data is safe!");
-            }
-        });
     });
 });
   </script>

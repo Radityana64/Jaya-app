@@ -34,7 +34,6 @@
         <div class="card-header bg-white">
             <div class="d-flex align-items-center justify-content-between">
                 <div>
-                    <i class="fas fa-map-marker-alt text-danger me-2"></i>
                     <h5 class="mb-0 d-inline">Alamat Pengiriman</h5>
                 </div>
                 <button class="btn btn-outline-primary btn-sm" onclick="showAddressModal()">
@@ -76,7 +75,6 @@
         <div class="card-header bg-white">
             <div class="d-flex align-items-center justify-content-between">
                 <div>
-                    <i class="fas fa-truck text-primary me-2"></i>
                     <h5 class="mb-0 d-inline">Opsi Pengiriman</h5>
                 </div>
                 <button class="btn btn-outline-primary btn-sm" onclick="showShippingOptionsModal()" id="chooseShippingBtn" disabled>
@@ -126,7 +124,6 @@
         <div class="card-header bg-white">
             <div class="d-flex align-items-center justify-content-between">
                 <div>
-                    <i class="fas fa-tag text-primary me-2"></i>
                     <h5 class="mb-0 d-inline">Voucher</h5>
                 </div>
                 <button class="btn btn-outline-primary btn-sm" onclick="showvoucherModal()" id="chooseVoucherBtn">
@@ -187,6 +184,17 @@
 
 @push('styles')
 <style>
+    .transition-all {
+    transition: all 0.3s ease;
+}
+
+.hover\:bg-gray-100:hover {
+    background-color: #f8f9fa;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
 .checkout-container {
     max-width: 800px;
     margin: 0 auto;
@@ -339,36 +347,61 @@
     }
 
     async function loadAddresses() {
-        const jwtToken = getJwtToken();
-        try {
-            const response = await fetch('http://127.0.0.1:8000/api/alamat', {
-                headers: {
-                    'Authorization': `Bearer ${jwtToken}`,
-                    'Accept': 'application/json'
-                }
-            });
-            
-            if (!response.ok) throw new Error('Failed to fetch addresses');
-            
-            const data = await response.json();
-            const addressList = document.getElementById('addressList');
-            
-            if (data.status === 'success' && data.data.length > 0) {
-                addressList.innerHTML = data.data.map(address => `
-                    <div class="address-card" onclick="selectAddress(${JSON.stringify(address).replace(/"/g, '&quot;')})">
-                        <h6 class="mb-2">${address.nama_jalan}</h6>
-                        <p class="mb-1">${address.detail_lokasi}</p>
-                        <p class="mb-1">${address.kode_pos.nama_kota}, ${address.kode_pos.nama_provinsi}</p>
-                        <p class="mb-0">${address.kode_pos.kode_pos}</p>
-                    </div>
-                `).join('');
-            } else {
-                addressList.innerHTML = '<p class="text-center">Tidak ada alamat tersimpan</p>';
+    const jwtToken = getJwtToken();
+    const addressList = document.getElementById('addressList');
+    
+    // Add loading state
+    addressList.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Memuat alamat...</p>
+        </div>
+    `;
+
+    try {
+        const response = await fetch('http://127.0.0.1:8000/api/alamat', {
+            headers: {
+                'Authorization': `Bearer ${jwtToken}`,
+                'Accept': 'application/json'
             }
-        } catch (error) {
-            console.error('Error loading addresses:', error);
+        });
+        
+        if (!response.ok) throw new Error('Failed to fetch addresses');
+        
+        const data = await response.json();
+        
+        if (data.status !== 'success' || data.data.length === 0) {
+            addressList.innerHTML = `
+                <div class="text-center py-4">
+                    <p class="text-muted">Tidak ada alamat tersimpan</p>
+                    <button class="btn btn-primary mt-2" href="/data-pengguna/alamat">alamat</button>
+                </div>
+            `;
+            return;
         }
+
+        addressList.innerHTML = data.data.map(address => `
+            <div class="address-card transition-all hover:bg-gray-100 cursor-pointer p-3 rounded-lg mb-2" 
+                 onclick="selectAddress(${JSON.stringify(address).replace(/"/g, '&quot;')})">
+                <h6 class="mb-2">${address.nama_jalan}</h6>
+                <p class="mb-1">${address.detail_lokasi}</p>
+                <p class="mb-1">${address.kode_pos.nama_kota}, ${address.kode_pos.nama_provinsi}</p>
+                <p class="mb-0">${address.kode_pos.kode_pos}</p>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading addresses:', error);
+        addressList.innerHTML = `
+            <div class="text-center py-4">
+                <p class="text-danger">Gagal memuat alamat. Silakan coba lagi.</p>
+                <button class="btn btn-primary mt-2" onclick="loadAddresses()">Coba Lagi</button>
+            </div>
+        `;
     }
+}
+
 
     function showAddressModal() {
         const modal = new bootstrap.Modal(document.getElementById('addressModal'));
@@ -421,6 +454,18 @@
 
     async function loadShippingOptions() {
         const jwtToken = getJwtToken();
+        const shippingOptionsList = document.getElementById('shippingOptionsList');
+        
+        // Add loading state
+        shippingOptionsList.innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Memuat opsi pengiriman...</p>
+            </div>
+        `;
+
         try {
             const response = await fetch('http://127.0.0.1:8000/api/opsi-pengiriman', {
                 headers: {
@@ -432,13 +477,22 @@
             if (!response.ok) throw new Error('Failed to fetch shipping options');
             
             const data = await response.json();
-            const shippingOptionsList = document.getElementById('shippingOptionsList');
             
+            if (data.shipping_options.length === 0) {
+                shippingOptionsList.innerHTML = `
+                    <div class="text-center py-4">
+                        <p class="text-muted">Tidak ada opsi pengiriman tersedia</p>
+                    </div>
+                `;
+                return;
+            }
+
             shippingOptionsList.innerHTML = data.shipping_options.map(carrier => `
                 <div class="carrier-section mb-3">
                     <h6>${carrier.name}</h6>
-                    ${carrier.costs.map(service => `
-                        <div class="shipping-option" onclick="selectShippingOption('${carrier.code}', '${service.service}', ${service.cost[0].value}, '${service.description}', '${service.cost[0].etd}')">
+                    ${carrier.costs.length > 0 ? carrier.costs.map(service => `
+                        <div class="shipping-option transition-all hover:bg-gray-100 cursor-pointer p-3 rounded-lg mb-2" 
+                            onclick="selectShippingOption('${carrier.code}', '${service.service}', ${service.cost[0].value}, '${service.description}', '${service.cost[0].etd}')">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
                                     <strong>${service.service} - ${service.description}</strong>
@@ -449,11 +503,18 @@
                                 </div>
                             </div>
                         </div>
-                    `).join('')}
+                    `).join('') : `
+                        <p class="text-muted text-center py-3">Tidak ada layanan pengiriman tersedia untuk kurir ini</p>
+                    `}
                 </div>
             `).join('');
         } catch (error) {
             console.error('Error loading shipping options:', error);
+            shippingOptionsList.innerHTML = `
+                <div class="text-center py-4">
+                    <p class="text-danger">Gagal memuat opsi pengiriman. Silakan coba lagi.</p>
+                </div>
+            `;
         }
     }
 
@@ -485,6 +546,18 @@
     }
     async function loadVouchers() {
         const jwtToken = getJwtToken();
+        const voucherList = document.getElementById('voucherList');
+        
+        // Add loading state
+        voucherList.innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Memuat voucher...</p>
+            </div>
+        `;
+
         try {
             const response = await fetch('http://127.0.0.1:8000/api/vouchers/active', {
                 headers: {
@@ -496,25 +569,35 @@
             if (!response.ok) throw new Error('Failed to fetch vouchers');
             
             const data = await response.json();
-            const voucherList = document.getElementById('voucherList');
             
-            if (data.success && data.data.length > 0) {
-                voucherList.innerHTML = data.data.map(voucherData => {
-                    const voucher = voucherData.voucher; // Akses objek voucher
-                    return `
-                        <div class="voucher-card" onclick="selectVoucher(${JSON.stringify(voucher).replace(/"/g, '&quot;')})">
-                            <h6 class="mb-2">${voucher.nama_voucher}</h6>
-                            <p class="mb-1">Diskon: ${voucher.diskon} %</p>
-                            <p class="mb-1">Min Pembelian: Rp ${voucher.min_pembelian}</p>
-                            <p class="mb-0">Tanggal Akhir: ${new Date(voucher.tanggal_akhir).toLocaleDateString()}</p>
-                        </div>
-                    `;
-                }).join('');
-            } else {
-                voucherList.innerHTML = '<p class="text-center">Tidak ada voucher aktif</p>';
+            if (!data.success || data.data.length === 0) {
+                voucherList.innerHTML = `
+                    <div class="text-center py-4">
+                        <p class="text-muted">Tidak ada voucher aktif</p>
+                    </div>
+                `;
+                return;
             }
+
+            voucherList.innerHTML = data.data.map(voucherData => {
+                const voucher = voucherData.voucher;
+                return `
+                    <div class="voucher-card transition-all hover:bg-gray-100 cursor-pointer p-3 rounded-lg mb-2" 
+                        onclick="selectVoucher(${JSON.stringify(voucher).replace(/"/g, '&quot;')})">
+                        <h6 class="mb-2">${voucher.nama_voucher}</h6>
+                        <p class="mb-1">Diskon: ${voucher.diskon} %</p>
+                        <p class="mb-1">Min Pembelian: Rp ${formatNumber(voucher.min_pembelian)}</p>
+                        <p class="mb-0">Tanggal Akhir: ${new Date(voucher.tanggal_akhir).toLocaleDateString()}</p>
+                    </div>
+                `;
+            }).join('');
         } catch (error) {
             console.error('Error loading vouchers:', error);
+            voucherList.innerHTML = `
+                <div class="text-center py-4">
+                    <p class="text-danger">Gagal memuat voucher. Silakan coba lagi.</p>
+                </div>
+            `;
         }
     }
 
@@ -639,9 +722,9 @@
         address: selectedAddress.innerText.replace(/\n/g, ', ').replace(/,+/g, ', ').trim(), // Ganti \n dengan koma dan hapus koma berlebih
         shipping_cost: Math.round(shippingCost),
         voucher_discount: Math.round(calculatedVoucherDiscount),
-        firstName: dataPelanggan.username || '',
-        email: dataPelanggan.email || '',
-        phone: dataPelanggan.telepon || '',
+        firstName: dataPelanggan.data.pelanggan.username || '',
+        email: dataPelanggan.data.email || '',
+        phone: dataPelanggan.data.pelanggan.telepon || '',
     };
 
     // Tambahkan console.log untuk melihat data yang dikirim
@@ -680,12 +763,15 @@
                 onSuccess: async function(result) {
                     console.log('Payment Success:', result);
                     await saveShippingAndVoucher();
+                    window.location.href = '/data-pelanggan/pesanan';
                 },
                 onPending: async function(result) {
                     console.log('Payment Pending:', result);
                     try {
                         await sendSnapToken(responseData.snap_token, jwtToken);
                         await saveShippingAndVoucher();
+                        window.location.href = '/data-pelanggan/pesanan';
+                        
                     } catch (error) {
                         console.error('Error sending Snap token:', error);
                         alert(error.message);

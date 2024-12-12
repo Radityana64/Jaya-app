@@ -139,7 +139,7 @@ let currentPage = 1;
 const productsPerPage = 15;
 
 // Fetch products from API
-async function fetchProducts(searchTerm = '', categorySearchTerm = '') {
+async function fetchProducts(searchTerm = '', categoryTerm = '') {
     try {
         const response = await fetch('http://127.0.0.1:8000/api/produk');
         const responseData = await response.json();
@@ -149,23 +149,24 @@ async function fetchProducts(searchTerm = '', categorySearchTerm = '') {
             
             // Filter products by search term
             if (searchTerm) {
-                allProducts = allProducts.filter(product => 
-                    product.nama_produk.toLowerCase().includes(searchTerm.toLowerCase())
-                );
+                allProducts = allProducts.filter(product => {
+                    // Cek apakah nama produk mengandung searchTerm
+                    const matchesProductName = product.nama_produk.toLowerCase().includes(searchTerm.toLowerCase());
+
+                    // Cek apakah kategori produk mengandung searchTerm
+                    const matchesCategory = product.kategori.nama_kategori.toLowerCase().includes(searchTerm.toLowerCase());
+
+                    // Kembalikan true jika salah satu dari kondisi di atas terpenuhi
+                    return matchesProductName || matchesCategory;
+                });
             }
 
-            // Filter products by category search term
-            if (categorySearchTerm) {
-                const categoryIds = categories
-                    .filter(category => 
-                        category.nama_kategori.toLowerCase().includes(categorySearchTerm.toLowerCase())
-                    )
-                    .flatMap(category => category.kategori2.map(subCat => subCat.id_kategori_2));
-                
+            if (categoryTerm) {
                 allProducts = allProducts.filter(product => 
-                    categoryIds.includes(product.kategori_2.id_kategori_2)
+                    product.kategori.id_kategori === parseInt(categoryTerm)
                 );
             }
+            
             
             // Set price range after fetching products
             if (allProducts.length > 0) {
@@ -224,7 +225,7 @@ function displayProducts(products) {
             <div class="col-lg-4 col-md-6 col-12">
                 <div class="single-product">
                     <div class="product-img">
-                        <a href="produk-detail/${product.id_produk}">
+                        <a href="/produk-detail/${product.id_produk}">
                             <img class="default-img" src="${imageUrl}" alt="${product.nama_produk}">
                             <img class="hover-img" src="${imageUrl}" alt="${product.nama_produk}">
                         </a>
@@ -256,14 +257,17 @@ function displayCategories(categories) {
     categoryList.innerHTML = '<li><a href="#" onclick="filterByCategory(\'all\')">Hapus Filter</a></li>';
 
     categories.forEach(category => {
+        // Buat elemen kategori
         const categoryHtml = `
             <li>
-                <a href="#" onclick="filterByCategory(${category.id_kategori_1})">${category.nama_kategori}</a>
-                <ul class="sub-category" style="padding-left: 20px;">
-                    ${category.kategori2.map(subCat => 
-                        `<li><a href="#" onclick="filterBySubCategory(${subCat.id_kategori_2})">${subCat.nama_kategori}</a></li>`
-                    ).join('')}
-                </ul>
+                <a href="#" onclick="filterByCategory(${category.id_kategori})">${category.nama_kategori}</a>
+                ${category.sub_kategori && category.sub_kategori.length > 0 ? `
+                    <ul class="sub-category" style="padding-left: 20px;">
+                        ${category.sub_kategori.map(subCat => 
+                            `<li><a href="#" onclick="filterBySubCategory(${subCat.id_kategori})">${subCat.nama_kategori}</a></li>`
+                        ).join('')}
+                    </ul>
+                ` : ''}
             </li>
         `;
         categoryList.innerHTML += categoryHtml;
@@ -302,28 +306,47 @@ function filterByPrice() {
     displayProducts(filtered);
 }
 
-// Filter by category
 function filterByCategory(categoryId) {
     if (categoryId === 'all') {
         displayProducts(allProducts);
         return;
     }
-    
-    const filtered = allProducts.filter(product => {
-        const category = categories.find(cat => 
-            cat.kategori2.some(subCat => subCat.id_kategori_2 === product.kategori_2.id_kategori_2)
+
+    const selectedCategory = categories.find(cat => cat.id_kategori === categoryId);
+
+    if (!selectedCategory) {
+        // Jika kategori tidak ditemukan, tampilkan produk kosong
+        displayProducts([]);
+        return;
+    }
+
+    let filtered;
+
+    if (selectedCategory.level === "1") {
+        // Jika kategori level 1, ambil semua subkategori
+        const subCategoryIds = selectedCategory.sub_kategori.map(subCat => subCat.id_kategori);
+        // Tambahkan id kategori level 1 ke dalam array subCategoryIds
+        subCategoryIds.push(selectedCategory.id_kategori);
+        filtered = allProducts.filter(product => 
+            subCategoryIds.includes(product.kategori.id_kategori)
         );
-        return category && category.id_kategori_1 === categoryId;
-    });
+    } else if (selectedCategory.level === "2") {
+        // Jika kategori level 2, ambil produk yang sesuai dengan kategori ini
+        filtered = allProducts.filter(product => 
+            product.kategori.id_kategori === categoryId
+        );
+    }
+
     currentPage = 1; // Reset to first page when filtering
     displayProducts(filtered);
 }
 
-// Filter by subcategory
+// Fungsi untuk menangani klik pada subkategori
 function filterBySubCategory(subCategoryId) {
     const filtered = allProducts.filter(product => 
-        product.kategori_2.id_kategori_2 === subCategoryId
+        product.kategori.id_kategori === subCategoryId
     );
+
     currentPage = 1; // Reset to first page when filtering
     displayProducts(filtered);
 }
@@ -368,15 +391,16 @@ function changePage(direction) {
 }
 
 function clearFilters() {
-    window.location.href = '/'; // Redirect ke halaman produk grid tanpa filter
+    window.location.href = '/etalase/produk/'; // Redirect ke halaman produk grid tanpa filter
 }
+
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const searchTerm = urlParams.get('search') || '';
-    const categorySearchTerm = urlParams.get('categorySearch') || '';
-    fetchProducts(searchTerm, categorySearchTerm);
+    const categoryTerm = urlParams.get('category') || '';
+    fetchProducts(searchTerm, categoryTerm);
     fetchCategories();
 });
 </script>

@@ -19,10 +19,10 @@
               <thead>
                   <tr>
                       <th>No</th>
-                      <th>Id Kategori 1</th>
-                      <th>Kategori 1</th>
-                      <th>Id Kategori 2</th>
-                      <th>Kategori 2</th>
+                      <th>ID Kategori</th>
+                      <th>Kategori</th>
+                      <th>ID Sub Kategori</th>
+                      <th>Sub Kategori</th>
                       <th>Action</th>
                   </tr>
               </thead>
@@ -45,8 +45,10 @@
                 <thead>
                     <tr>
                         <th>No</th>
-                        <th>Id Kategori 1</th>
-                        <th>Kategori 1</th>
+                        <th>ID Kategori</th>
+                        <th>Kategori</th>
+                        <th>Gambar</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody id="kategori1-table-body">
@@ -100,12 +102,12 @@
             // Use a counter for sequential numbering
             let counter = 1;
 
-            categories.forEach((category1) => {
-                const idKategori1 = category1.id_kategori_1;
-                const namaKategori1 = category1.nama_kategori;
-                category1.kategori2.forEach((category2) => {
-                    const idKategori2 = category2.id_kategori_2;
-                    const namaKategori2 = category2.nama_kategori;
+            categories.forEach((category) => {
+                const idKategori1 = category.id_kategori;
+                const namaKategori1 = category.nama_kategori;
+                category.sub_kategori.forEach((sub_kategori) => {
+                    const idKategori2 = sub_kategori.id_kategori;
+                    const namaKategori2 = sub_kategori.nama_kategori;
                     rows += `
                         <tr>
                             <td>${counter++}</td> <!-- Sequential numbering -->
@@ -114,12 +116,8 @@
                             <td>${idKategori2}</td>
                             <td>${namaKategori2}</td>
                             <td>
-                                <a href="{{url('category/${idKategori1}/edit')}}" class="btn btn-primary btn-sm">Edit</a>
-                                <form method="POST" action="{{url('category/${idKategori1}')}}" style="display:inline;">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="button" class="btn btn-danger btn-sm dltBtn" data-id="${idKategori1}">Delete</button>
-                                </form>
+                                <a href="{{url('kategori/edit/${idKategori1}')}}" class="btn btn-primary btn-sm">Edit</a>
+                                <button type="button" class="btn btn-danger btn-sm nonaktifBtn" data-id="${idKategori2}">Nonaktif</button>
                             </td>
                         </tr>
                     `;
@@ -144,48 +142,51 @@
             });
 
             // Attach event listeners for delete buttons
-            attachDeleteEvent();
+            attachNonaktifEvent();
         }
 
-        function attachDeleteEvent() {
-            $('.dltBtn').on('click', function() {
+        function attachNonaktifEvent() {
+            $('.nonaktifBtn').on('click', function() {
                 const id = $(this).data('id');
                 swal({
                     title: "Are you sure?",
-                    text: "Once deleted, you will not be able to recover this imaginary file!",
+                    text: "Once nonaktif, you will not be able to recover this category!",
                     icon: "warning",
                     buttons: true,
                     dangerMode: true,
                 })
-                .then((willDelete) => {
-                    if (willDelete) {
-                        // Perform delete action
-                        fetch(`http://127.0.0.1:8000/api/kategori/${id}`, {
-                            method: 'DELETE',
+                .then((willNonaktif) => {
+                    if (willNonaktif) {
+                        // Perform nonaktif action
+                        fetch(`http://127.0.0.1:8000/api/kategori/status/${id}`, {
+                            method: 'PUT',
                             headers: {
                                 'Content-Type': 'application/json',
                                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                            }
+                            },
+                            body: JSON.stringify({ status: 'nonaktif' })
                         })
                         .then(response => {
                             if (response.ok) {
-                                swal("Poof! Your imaginary file has been deleted!", {
+                                swal("Success! The category has been deactivated.", {
                                     icon: "success",
+                                    buttons: false,
+                                    
                                 });
+                                location.reload();
                                 // Refresh the table
-                                populateTable(categoriesData);
                             } else {
-                                swal("Error deleting the category!");
+                                swal("Error deactivating the category!");
                             }
                         })
-                        .catch(error => console.error('Error deleting data:', error));
+                        .catch(error => console.error('Error deactivating data:', error));
                     }
                 });
             });
         }
 
         $('#kategori1-btn').on('click', function() {
-            const kategori1Data = categoriesData.filter(category1 => category1.kategori2 && category1.kategori2.length > 0);
+            const kategori1Data = categoriesData.filter(category => category.sub_kategori && category.sub_kategori.length > 0);
             populateKategori1Table(kategori1Data);
             $('#all-categories').hide(); // Hide the main category table
             $('#kategori1-table').show(); // Show Kategori 1 table
@@ -201,14 +202,20 @@
             const kategori1TableBody = document.getElementById('kategori1-table-body');
             let rows = '';
 
-            kategori1Data.forEach((category1, index) => {
-                const idKategori1 = category1.id_kategori_1;
-                const namaKategori1 = category1.nama_kategori;
+            kategori1Data.forEach((category, index) => {
+                const idKategori1 = category.id_kategori;
+                const namaKategori1 = category.nama_kategori;
+                const gambar = category.gambar_kategori;
                 rows += `
                     <tr>
                         <td>${index + 1}</td> <!-- Sequential numbering -->
                         <td>${idKategori1}</td>
                         <td>${namaKategori1}</td>
+                        <td><img src=${gambar} class="img-fluid" style="max-width:80px" alt="Kategori Gambar"></td>
+                        <td>
+                            <a href="{{url('kategori/edit/${idKategori1}')}}" class="btn btn-primary btn-sm">Edit</a>
+                            <button type="button" class="btn btn-danger btn-sm nonaktifBtn" data-id="${idKategori1}">Nonaktif</button>
+                        </td>
                     </tr>
                 `;
             });
@@ -222,7 +229,9 @@
 
             // Initialize DataTable for Kategori 1
             $('#kategori1-dataTable').DataTable();
+
+            attachNonaktifEvent()
         }
-      });
-  </script>
+    });
+</script>
 @endpush

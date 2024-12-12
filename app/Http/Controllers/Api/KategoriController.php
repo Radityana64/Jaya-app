@@ -3,99 +3,395 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Kategori1;
-use App\Models\Kategori2;
+use App\Models\Kategori;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class KategoriController extends Controller
 {
-    // Get all Kategori1 with their Kategori2
-    public function index()
+    public function getKategori()
     {
-        $kategori1 = Kategori1::with('kategori2')->get();
+        try {
+            // Ambil kategori utama (level 1)
+            $kategoris = Kategori::where('level', '1')
+                ->with(['subKategori' => function($query) {
+                    $query->where('status', 'aktif');
+                }])
+                ->where('status', 'aktif')
+                ->get();
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $kategori1
-        ], 200);
+            return response()->json([
+                'status' => true,
+                'message' => 'Berhasil mendapatkan kategori',
+                'data' => $kategoris
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Gagal mendapatkan kategori: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
-    // Create a new Kategori1
-    public function storeKategori1(Request $request)
+    // public function getKategoriNonaktif()
+    // {
+    //     try {
+    //         // Ambil kategori utama (level 1)
+    //         $kategoris = Kategori::where('level', '1')
+    //             ->with(['subKategori' => function($query) {
+    //                 $query->where('status', 'nonaktif');
+    //             }])
+    //             ->where('status', 'aktif')
+    //             ->get();
+
+    //         return response()->json([
+    //             'status' => true,
+    //             'message' => 'Berhasil mendapatkan kategori',
+    //             'data' => $kategoris
+    //         ], 200);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'status' => false,
+    //             'message' => 'Gagal mendapatkan kategori: ' . $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
+
+    public function getKategoriById($id_kategori)
     {
-        $request->validate([
+        try {
+            // Ambil kategori dengan relasi yang sesuai
+            $kategori = Kategori::where('id_kategori', $id_kategori)
+                ->where('status', 'aktif')
+                ->first();
+    
+            // Periksa apakah kategori ditemukan
+            if (!$kategori) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Kategori tidak ditemukan'
+                ], 404);
+            }
+    
+            // Logika loading berdasarkan level
+            switch ($kategori->level) {
+                case '1':
+                    // Untuk level 1, muat semua sub-kategori (level 2)
+                    $kategori->load([
+                        'subKategori' => function($query) {
+                            $query->where('status', 'aktif');
+                        }
+                    ]);
+                    break;
+    
+                case '2':
+                    // Untuk level 2, muat induk (level 1) 
+                    // Dan kategori level 2 lainnya dari induk yang sama
+                    $kategori->load([
+                        'induk', // Load induk kategori
+                        'induk.subKategori' => function($query) {
+                            $query->where('status', 'aktif');
+                        }
+                    ]);
+                    break;
+    
+                default:
+                    // Tangani level yang tidak dikenal
+                    return response()->json([
+                        'status' => false,
+                        'message' => 'Level kategori tidak valid'
+                    ], 400);
+            }
+            
+            return response()->json([
+                'status' => true,
+                'message' => 'Berhasil mendapatkan kategori',
+                'data' => $kategori
+            ], 200);
+    
+        } catch (\Exception $e) {
+            // Log error untuk kebutuhan debugging
+            \Log::error('Error getting kategori: ' . $e->getMessage());
+            
+            return response()->json([
+                'status' => false,
+                'message' => 'Gagal mendapatkan kategori',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Tambah/Edit Kategori
+    public function createKategori(Request $request)
+    {
+        // Validasi input
+        $validator = Validator::make($request->all(), [
             'nama_kategori' => 'required|string|max:255',
+            'gambar_kategori' => 'image|mimes:jpeg,png,jpg|max:2048',
+            'status' => 'required|in:aktif,nonaktif',
+            'sub_kategori' => 'nullable|array',
+            'sub_kategori.*' => 'string|max:255'
         ]);
 
-        $kategori1 = Kategori1::create($request->all());
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Validasi gagal',
+                'errors' => $validator->errors()
+            ], 400);
+        }
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $kategori1
-        ], 201);
+        DB::beginTransaction();
+        try {
+            // Buat atau update kategori utama
+            $kategori = new Kategori();
+            $kategori->nama_kategori = $request->nama_kategori;
+            $kategori->level = '1'; // Kategori utama selalu level 1
+            $kategori->status = $request->status;
+
+            // Proses upload gambar
+            if ($request->hasFile('gambar_kategori')) {
+                $uploadedFile = Cloudinary::upload($request->file('gambar_kategori')->getRealPath(), [
+                    'folder' => 'kategori_images'
+                ]);
+
+                $cleanUrl = preg_replace('/\.[^.]+$/', '', $uploadedFile->getSecurePath());
+                $kategori->gambar_kategori = $cleanUrl;
+            }
+
+            // Simpan kategori utama
+            $kategori->save();
+
+            // Proses sub kategori jika ada
+            $subKategoris = [];
+            if ($request->has('sub_kategori') && 
+                is_array($request->sub_kategori) && 
+                !empty(array_filter($request->sub_kategori))) {
+                
+                foreach ($request->sub_kategori as $namaSubKategori) {
+                    // Skip jika nama sub kategori kosong
+                    if (trim($namaSubKategori) === '') continue;
+
+                    // Cek apakah sub kategori sudah ada
+                    $subKategori = Kategori::where('nama_kategori', $namaSubKategori)
+                        ->where('level', '2')
+                        ->where('id_induk', $kategori->id_kategori)
+                        ->first();
+
+                    // Jika belum ada, buat sub kategori baru
+                    if (!$subKategori) {
+                        $subKategori = new Kategori();
+                        $subKategori->nama_kategori = $namaSubKategori;
+                        $subKategori->level = '2';
+                        $subKategori->id_induk = $kategori->id_kategori;
+                        $subKategori->status = $request->status; // Inherit status dari kategori utama
+                        $subKategori->save();
+                    }
+
+                    $subKategoris[] = $subKategori;
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Berhasil menyimpan kategori',
+                'data' => [
+                    'kategori' => $kategori,
+                    'sub_kategori' => $subKategoris
+                ]
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => false,
+                'message' => 'Gagal menyimpan kategori: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
-    // Update Kategori1
-    public function updateKategori1(Request $request, $id)
+    public function updateKategori(Request $request, $id_kategori)
     {
-        $kategori1 = Kategori1::findOrFail($id);
-        $kategori1->update($request->all());
+        // Cari kategori utama
+        $kategori = Kategori::findOrFail($id_kategori);
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $kategori1
-        ], 200);
-    }
-
-    // Delete Kategori1
-    public function destroyKategori1($id)
-    {
-        $kategori1 = Kategori1::findOrFail($id);
-        $kategori1->delete();
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Kategori1 deleted successfully'
-        ], 200);
-    }
-
-    // Create a new Kategori2
-    public function storeKategori2(Request $request)
-    {
-        $request->validate([
-            'id_kategori_1' => 'required|exists:tb_kategori_1,id_kategori_1',
-            'nama_kategori' => 'required|string|max:255',
+        // Validasi input
+        $validator = Validator::make($request->all(), [
+            'nama_kategori' => 'sometimes|string|max:255',
+            'gambar_kategori' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'status' => 'sometimes|in:aktif,nonaktif',
+            'sub_kategori' => 'nullable|array',
+            'sub_kategori.*.id' => 'sometimes|exists:tb_kategori,id_kategori', // Validasi ID sub kategori
+            'sub_kategori.*.nama' => 'sometimes|string|max:255', // Tambahkan validasi nama
+            'sub_kategori.*.status' => 'sometimes|in:aktif,nonaktif',
+            'new_sub_kategori' => 'nullable|array',
+            'new_sub_kategori.*' => 'string|max:255'
         ]);
 
-        $kategori2 = Kategori2::create($request->all());
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Validasi gagal',
+                'errors' => $validator->errors()
+            ], 400);
+        }
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $kategori2
-        ], 201);
+        DB::beginTransaction();
+        try {
+            // Update nama kategori jika ada perubahan
+            if ($request->has('nama_kategori')) {
+                $kategori->nama_kategori = $request->nama_kategori;
+            }
+
+            // Update status kategori jika ada perubahan
+            if ($request->has('status')) {
+                $kategori->status = $request->status;
+            }
+
+            // Proses upload gambar baru jika ada
+            if ($request->hasFile('gambar_kategori')) {
+                // Upload gambar baru
+                $uploadedFile = Cloudinary::upload($request->file('gambar_kategori')->getRealPath(), [
+                    'folder' => 'kategori_images'
+                ]);
+
+                $cleanUrl = preg_replace('/\.[^.]+$/', '', $uploadedFile->getSecurePath());
+                $kategori->gambar_kategori = $cleanUrl;
+            }
+
+            // Simpan perubahan kategori utama
+            $kategori->save();
+
+            // Proses update sub kategori yang sudah ada
+            if ($request->has('sub_kategori')) {
+                foreach ($request->sub_kategori as $subKategoriData) {
+                    $subKategori = Kategori::where('id_kategori', $subKategoriData['id'])
+                        ->where('id_induk', $kategori->id_kategori)
+                        ->where('level', '2')
+                        ->first();
+
+                    if ($subKategori) {
+                        // Update nama sub kategori jika ada
+                        if (isset($subKategoriData['nama'])) {
+                            // Cek apakah nama sub kategori sudah ada di kategori yang sama
+                            $existingSubKategori = Kategori::where('nama_kategori', $subKategoriData['nama'])
+                                ->where('id_induk', $kategori->id_kategori)
+                                ->where('level', '2')
+                                ->where('id_kategori', '!=', $subKategori->id_kategori)
+                                ->exists();
+
+                            if ($existingSubKategori) {
+                                throw new \Exception("Sub kategori dengan nama {$subKategoriData['nama']} sudah ada.");
+                            }
+
+                            $subKategori->nama_kategori = $subKategoriData['nama'];
+                        }
+
+                        // Update status sub kategori jika ada
+                        if (isset($subKategoriData['status'])) {
+                            $subKategori->status = $subKategoriData['status'];
+                        }
+
+                        $subKategori->save();
+                    }
+                }
+            }
+
+            // Proses tambah sub kategori baru
+            if ($request->has('new_sub_kategori')) {
+                $subKategoris = [];
+                foreach ($request->new_sub_kategori as $namaSubKategori) {
+                    // Skip jika nama sub kategori kosong
+                    if (trim($namaSubKategori) === '') continue;
+
+                    // Cek apakah sub kategori sudah ada
+                    $existingSubKategori = Kategori::where('nama_kategori', $namaSubKategori)
+                        ->where('level', '2')
+                        ->where('id_induk', $kategori->id_kategori)
+                        ->first();
+
+                    // Jika belum ada, buat sub kategori baru
+                    if (!$existingSubKategori) {
+                        $subKategori = new Kategori();
+                        $subKategori->nama_kategori = $namaSubKategori;
+                        $subKategori->level = '2';
+                        $subKategori->id_induk = $kategori->id_kategori;
+                        $subKategori->status = $kategori->status; // Inherit status dari kategori utama
+                        $subKategori->save();
+
+                        $subKategoris[] = $subKategori;
+                    }
+                }
+            }
+
+            DB::commit();
+
+            // Ambil ulang kategori dengan sub kategori terbaru
+            $kategoriWithSub = Kategori::with(['subKategori' => function($query) {
+                $query->where('level', '2');
+            }])->find($kategori->id_kategori);
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Berhasil mengupdate kategori',
+                'data' => $kategoriWithSub
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => false,
+                'message' => 'Gagal mengupdate kategori: ' . $e->getMessage()
+            ], 500);
+        }
     }
-
-    // Update Kategori2
-    public function updateKategori2(Request $request, $id)
+    
+    public function updateStatus(Request $request, $id_kategori)
     {
-        $kategori2 = Kategori2::findOrFail($id);
-        $kategori2->update($request->all());
+        // Validasi input
+        $validator = Validator::make($request->all(), [
+            'status' => 'required|in:aktif,nonaktif',
+        ]);
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $kategori2
-        ], 200);
-    }
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Validasi gagal',
+                'errors' => $validator->errors()
+            ], 400);
+        }
 
-    // Delete Kategori2
-    public function destroyKategori2($id)
-    {
-        $kategori2 = Kategori2::findOrFail($id);
-        $kategori2->delete();
+        DB::beginTransaction();
+        try {
+            // Cari kategori utama
+            $kategori = Kategori::findOrFail($id_kategori);
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Kategori2 deleted successfully'
-        ], 200);
+            // Update status kategori utama
+            $kategori->status = $request->status;
+            $kategori->save();
+
+            // Jika kategori level 1 dinonaktifkan, nonaktifkan semua subkategori
+            if ($kategori->level == 1 && $request->status == 'nonaktif') {
+                $kategori->subKategori()->update(['status' => 'nonaktif']);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Status kategori berhasil diperbarui',
+                'data' => $kategori
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => false,
+                'message' => 'Gagal memperbarui status kategori: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }
