@@ -66,6 +66,13 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+    function getCsrfToken() {
+        return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+
+    function getJwtToken() {
+        return document.querySelector('meta[name="api-token"]').getAttribute('content');
+    }
 function getKategoriIdFromUrl() {
   const pathParts = window.location.pathname.split('/');
   return pathParts[pathParts.length - 1];
@@ -75,12 +82,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const bannerId = getKategoriIdFromUrl();
     
     // Ambil data banner aktif berdasarkan ID
-    fetch(`http://127.0.0.1:8000/api/banners/aktif/${bannerId}`)
+    fetch(`http://127.0.0.1:8000/api/banners/aktif/${bannerId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken(),
+                'Authorization': `Bearer ${getJwtToken()}`
+            }
+        })
         .then(response => response.json())
-        .then(data => {
-            if (data) {
-                // Isi form dengan data banner
-                document.getElementById('banner-id').value = data.id;
+        .then(result => {
+            if (result && result.status && result.data) {
+                const data = result.data;
+
                 document.getElementById('judul').value = data.judul;
                 document.getElementById('deskripsi').value = data.deskripsi || '';
                 document.getElementById('status').value = data.status;
@@ -88,6 +102,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Preview gambar
                 const previewContainer = document.getElementById('preview-gambar');
                 previewContainer.innerHTML = `<img src="${data.gambar_banner}" style="max-width: 200px; margin-top: 10px;">`;
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Kesalahan!',
+                    text: 'Data banner tidak ditemukan.',
+                });
             }
         })
         .catch(error => {
@@ -98,6 +118,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 text: 'Terjadi kesalahan saat mengambil data banner.',
             });
         });
+
 
     // Event listener untuk form submit
     document.getElementById('banner-form').addEventListener('submit', function(e) {
@@ -159,12 +180,16 @@ document.addEventListener('DOMContentLoaded', function() {
             formData.append('gambar_banner', gambarBanner);
         }
         formData.append('status', status);
-        formData.append('_method', 'PUT');
+        formData.append('_method', 'PUT'); // Method PUT pada form data
 
-        // Kirim data ke backend
         fetch(`/api/banners/${bannerId}`, {
-            method: 'POST',
-            body: formData
+            method: 'POST',  // Tetap POST karena kita menggunakan form data
+            body: formData,  // Kirim form data
+            headers: {
+                'X-CSRF-TOKEN': getCsrfToken(),
+                'Authorization': `Bearer ${getJwtToken()}`,
+                // Tidak perlu Content-Type karena sudah otomatis ditangani oleh FormData
+            }
         })
         .then(response => response.json())
         .then(data => {
@@ -176,7 +201,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     timer: 1500,
                     showConfirmButton: false
                 }).then(() => {
-                  window.location.href = "/banner";
+                    window.location.href = "/banner";
                 });
             } else {
                 Swal.fire({
@@ -199,6 +224,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 text: 'Terjadi kesalahan saat memperbarui banner',
             });
         });
+
     }
 
     function resetForm() {

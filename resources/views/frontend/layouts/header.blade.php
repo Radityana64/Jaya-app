@@ -151,7 +151,7 @@
         }
 
         try {
-            const response = await fetch('http://127.0.0.1:8000/api/pelanggan/profil', {
+            const response = await fetch('http://127.0.0.1:8000/api/user/profil', {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -214,10 +214,9 @@
                 throw new Error(responseData.message || 'Logout failed');
             }
 
-            // Hapus token dari meta tag
             const metaApiToken = document.querySelector('meta[name="api-token"]');
             if (metaApiToken) {
-                metaApiToken.setAttribute('content', '');
+                metaApiToken.setAttribute('content', ''); // Reset meta tag
             }
 
             // Redirect atau update UI setelah logout

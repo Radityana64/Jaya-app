@@ -120,37 +120,37 @@ class AlamatController extends Controller
         }
     }
 
-    public function getCities()
-    {
-        try {
-            // Panggil endpoint /city dari API RajaOngkir
-            $response = Http::withHeaders([
-                'key' => $this->apiKey
-            ])->get($this->baseUrl . 'city');
+    // public function getCities()
+    // {
+    //     try {
+    //         // Panggil endpoint /city dari API RajaOngkir
+    //         $response = Http::withHeaders([
+    //             'key' => $this->apiKey
+    //         ])->get($this->baseUrl . 'city');
 
-            if ($response->successful()) {
-                $data = $response->json();
-                return response()->json([
-                    'status' => 'success',
-                    'data' => $data['rajaongkir']['results'] ?? []
-                ], 200);
-            } else {
-                Log::error('RajaOngkir API Error: ' . $response->body());
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Failed to fetch cities from RajaOngkir API',
-                    'details' => $response->body()
-                ], $response->status());
-            }
-        } catch (\Exception $e) {
-            Log::error('Error in getCities: ' . $e->getMessage());
-            return response()->json([
-                'status' => 'error',
-                'message' => 'An error occurred while fetching cities',
-                'details' => $e->getMessage()
-            ], 500);
-        }
-    }
+    //         if ($response->successful()) {
+    //             $data = $response->json();
+    //             return response()->json([
+    //                 'status' => 'success',
+    //                 'data' => $data['rajaongkir']['results'] ?? []
+    //             ], 200);
+    //         } else {
+    //             Log::error('RajaOngkir API Error: ' . $response->body());
+    //             return response()->json([
+    //                 'status' => 'error',
+    //                 'message' => 'Failed to fetch cities from RajaOngkir API',
+    //                 'details' => $response->body()
+    //             ], $response->status());
+    //         }
+    //     } catch (\Exception $e) {
+    //         Log::error('Error in getCities: ' . $e->getMessage());
+    //         return response()->json([
+    //             'status' => 'error',
+    //             'message' => 'An error occurred while fetching cities',
+    //             'details' => $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
 
 
    public function ambilProvinsi()
@@ -162,12 +162,26 @@ class AlamatController extends Controller
     public function getKabupaten($provinsiId)
     {
         $kabupaten = Kota::where('id_provinsi', $provinsiId)->get(); // Sesuaikan dengan model Anda
+        
+        if ($kabupaten->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kabupaten/Kota tidak ditemukan untuk Provinsi dengan id_provinsi: ' . $provinsiId
+            ], 404);
+        }
         return response()->json($kabupaten);
     }
 
     public function getKodePos($kabupatenId)
     {
-        $kodePos = KodePos::where('id_kota', $kabupatenId)->get(); // Sesuaikan dengan model Anda
+        $kodePos = KodePos::where('id_kota', $kabupatenId)->get(); 
+
+        if ($kodePos->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kode pos tidak ditemukan untuk kabupaten/kota dengan id: ' . $kabupatenId
+            ], 404);
+        }
         return response()->json($kodePos);
     }
 }

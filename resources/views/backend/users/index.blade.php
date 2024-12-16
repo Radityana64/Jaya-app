@@ -9,7 +9,7 @@
     </div>
     <div class="card-header py-3">
         <h6 class="m-0 font-weight-bold text-primary float-left">Daftar Pelanggan</h6>
-        <a href="#" class="btn btn-primary btn-sm float-right" data-toggle="tooltip" data-placement="bottom" title="Tambah Pelanggan"><i class="fas fa-plus"></i> Tambah Pelanggan</a>
+        <!-- <a href="#" class="btn btn-primary btn-sm float-right" data-toggle="tooltip" data-placement="bottom" title="Tambah Pelanggan"><i class="fas fa-plus"></i> Tambah Pelanggan</a> -->
     </div>
     <div class="card-body">
         <div class="table-responsive">

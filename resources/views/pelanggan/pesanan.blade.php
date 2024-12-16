@@ -167,6 +167,7 @@ $(document).ready(function() {
     $(document).on('click', '.review-button-variation', function() {
         const idPemesanan = $(this).data('id-pemesanan');
         const idProdukVariasi = $(this).data('id-produk-variasi');
+        console.log('Nilai Produk Clicked:', { idPemesanan, idProdukVariasi });
         showReviewModal(idPemesanan, idProdukVariasi);
     });
 
@@ -244,6 +245,7 @@ $(document).ready(function() {
         `);
     }
 
+
     // Fungsi untuk menambahkan produk ke keranjang
     function addToCart(idProdukVariasi) {
         const jwtToken = getJwtToken();
@@ -320,12 +322,12 @@ $(document).ready(function() {
         `).join('');
     }
 
-    function renderReviewButton(pesanan) {
+    function renderReviewButton(detail, pesanan) {
         if (pesanan.pengiriman.status_pengiriman === 'Diterima') {
             return `
                 <button class="btn btn-warning review-button-variation mt-2" 
                         data-id-pemesanan="${pesanan.id_pemesanan}"
-                        data-id-produk-variasi="${pesanan.detail_pemesanan[0].produk_variasi.id_produk_variasi}">
+                        data-id-produk-variasi="${detail.produk_variasi.id_produk_variasi}">
                     Nilai Produk
                 </button>
             `;
@@ -334,25 +336,39 @@ $(document).ready(function() {
     }
 
     function renderProductReview(detail, pesanan) {
-        const ulasan = detail.ulasan && detail.ulasan.length > 0 ? detail.ulasan[0] : null;
-        
-        if (ulasan) {
-            // Tampilkan ulasan dan balasan jika ada
-            const balasanHtml = ulasan.balasan && ulasan.balasan.length > 0 
-                ? `<p><strong>Balasan:</strong> ${ulasan.balasan[0].balasan}</p>` 
-                : '';
+        // Cek apakah sudah ada ulasan untuk produk variasi ini
+        const hasReview = detail.ulasan && (
+            (Array.isArray(detail.ulasan) && detail.ulasan.length > 0) || 
+            (typeof detail.ulasan === 'object' && Object.keys(detail.ulasan).length > 0)
+        );
 
-            return `
-                <div class="product-review mt-2">
-                    <p><strong>Ulasan:</strong> ${ulasan.ulasan}</p>
-                    <p><strong>Rating:</strong> ${renderRating(ulasan.id_rating || 0)}</p>
-                    ${balasanHtml}
-                </div>
-            `;
+        // Jika sudah ada ulasan, tampilkan ulasan
+        if (hasReview) {
+            // Normalisasi ulasan ke dalam array
+            const reviews = Array.isArray(detail.ulasan) 
+                ? detail.ulasan 
+                : Object.values(detail.ulasan);
+
+            return reviews.map(ulasan => {
+                // Render balasan jika ada
+                const balasanHtml = ulasan.balasan && ulasan.balasan.length > 0
+                    ? `<p><strong>Balasan:</strong> ${ulasan.balasan[0].balasan}</p>`
+                    : '';
+
+                return `
+                    <div class="product-review mt-2">
+                        <p><strong>Ulasan:</strong> ${ulasan.ulasan}</p>
+                        <p><strong>Rating:</strong> ${renderRating(ulasan.id_rating || 0)}</p>
+                        ${balasanHtml}
+                    </div>
+                `;
+            }).join('');
         }
 
-        return renderReviewButton(pesanan);
+        // Jika pesanan sudah diterima dan belum ada ulasan, tampilkan tombol nilai produk
+        return renderReviewButton(detail, pesanan);
     }
+
 
     // Fungsi untuk mendapatkan badge class
     function getBadgeClass(status) {

@@ -20,10 +20,21 @@ class UlasanController extends Controller
     {
         // Ambil user yang sedang login
         $user = auth()->user();
-        
+        $pelanggan = Pelanggan::where('id_user', $user->id_user)->first();
+
+        $requiredFields = ['id_pemesanan', 'id_produk_variasi', 'rating', 'ulasan'];
+        $missingFields = array_diff($requiredFields, array_keys($request->all()));
+        // Jika ada field yang hilang, kembalikan error 400
+        if (!empty($missingFields)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. Field wajib belum diisi: ' . implode(', ', $missingFields)
+            ], 400);
+        }
+
         $validator = Validator::make($request->all(),[
-            'id_pemesanan' => 'required|exists:tb_pemesanan,id_pemesanan',
-            'id_produk_variasi' => 'required|exists:tb_produk_variasi,id_produk_variasi',
+            'id_pemesanan' => 'required',
+            'id_produk_variasi' => 'required',
             'rating' => 'required|integer|between:1,5',
             'ulasan' => 'required|string|max:1000',
         ]);
@@ -35,10 +46,7 @@ class UlasanController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
-
-        // Cari pelanggan berdasarkan user yang login
-        $pelanggan = Pelanggan::where('id_user', $user->id_user)->first();
-
+        
         // Cari pemesanan
         $pemesanan = Pemesanan::where('id_pemesanan', $request->id_pemesanan)
             ->where('id_pelanggan', $pelanggan->id_pelanggan)
@@ -67,7 +75,7 @@ class UlasanController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'Produk variasi ini tidak ada dalam pesanan'
-            ], 403);
+            ], 404);
         }
 
         $existingReview = Ulasan::where('id_pemesanan', $request->id_pemesanan)
@@ -76,9 +84,9 @@ class UlasanController extends Controller
         
         if($existingReview){
             return response()->json([
-                'status' => false,
+                'status' => 'conflict',
                 'message' => 'Anda sudah memberikan ulasan untuk variasi produk ini'
-            ], 403);
+            ], 409);
         }
 
         $rating = Rating::where('rating', $request->rating)->first();
@@ -99,6 +107,16 @@ class UlasanController extends Controller
 
     public function getUlasanProduk($id_produk)
     {
+        $produkExists = DB::table('tb_produk')
+            ->where('id_produk', $id_produk)
+            ->exists();
+
+        if (!$produkExists) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Produk tidak ditemukan'
+            ], 404);
+        }
         $ulasan = DB::table('tb_ulasan as u')
             ->select([
                 'u.id_ulasan',
@@ -172,7 +190,13 @@ class UlasanController extends Controller
                     ] : null
                 ];
             });
-    
+        
+        if($ulasan->isEmpty()){
+            return response()->json([
+                "message"=>'Produk Belum Memiliki Ulasan'
+            ],404);
+        }
+
         $ratingStats = $this->calculateRatingStats($id_produk);
     
         return response()->json([
@@ -239,6 +263,32 @@ class UlasanController extends Controller
 
     public function SimpanBalasan(Request $request, $id_ulasan)
     {
+        $requiredFields = ['balasan'];
+        $missingFields = array_diff($requiredFields, array_keys($request->all()));
+        // Jika ada field yang hilang, kembalikan error 400
+        if (!empty($missingFields)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. Field wajib belum diisi: ' . implode(', ', $missingFields)
+            ], 400);
+        }
+
+        $ulasan = Ulasan::find($id_ulasan);
+        if(!$ulasan){
+            return response()->json([
+                'status' => false,
+                'message' => 'Ulasan tidak ditemukan'
+            ], 404);
+        }
+
+        $existingBalasan = Balasan::where('id_ulasan', $id_ulasan)->first();
+        if ($existingBalasan) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Ulasan sudah memiliki balasan'
+            ], 409); // Conflict
+        }
+
         $validator = Validator::make($request->all(),[
             'balasan'=>'required|string|max:1000'
         ]);
@@ -249,14 +299,6 @@ class UlasanController extends Controller
                 'message' => 'Validasi gagal',
                 'errors' => $validator->errors()
             ], 422);
-        }
-
-        $ulasan = Ulasan::find($id_ulasan);
-        if(!$ulasan){
-            return response()->json([
-                'status' => false,
-                'message' => 'Ulasan tidak ditemukan'
-            ], 404);
         }
 
         $balasan = $ulasan->balasan()->create([

@@ -18,6 +18,15 @@ class LaporanController extends Controller
 {
     public function getLaporanPenjualan(Request $request)
     {
+        $requiredFields = ['tanggal_mulai', 'tanggal_akhir'];
+        $missingFields = array_diff($requiredFields, array_keys($request->all()));
+        // Jika ada field yang hilang, kembalikan error 400
+        if (!empty($missingFields)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. Field wajib belum diisi: ' . implode(', ', $missingFields)
+            ], 400);
+        }
         // Validasi input tanggal
         $validator = Validator::make($request->all(), [
             'tanggal_mulai' => 'required|date',
@@ -40,6 +49,12 @@ class LaporanController extends Controller
                 ])
                 ->where('status_pembayaran', 'berhasil')
                 ->get();
+
+            if($pembayaran->isEmpty()){
+                return response()->json([
+                    'message'=>'tidak ada transaksi pada rentang waktu tersebut' 
+                ],404);
+            }
 
             // Hitung total penjualan
             $total_penjualan = $pembayaran->sum('total_pembayaran');

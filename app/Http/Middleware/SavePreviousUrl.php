@@ -11,17 +11,9 @@ class SavePreviousUrl
 {
     public function handle(Request $request, Closure $next)
     {
-        // Cek apakah pengguna sudah login
-        if ($request->user()) {
-            \Log::info('User  is already logged in, redirecting to dashboard.');
-            return redirect()->route('produk.grids');
-        }
-
-        // Cek apakah session 'previous_url' sudah ada dan request adalah ke halaman login
-        if (!session()->has('previous_url') && $request->is('login')) {
+        if (!$request->is('login', 'register', 'password.reset', 'forgot.password', 'logout')) {
             $previousUrl = url()->previous();
 
-            // Validasi URL
             if ($this->isValidUrl($previousUrl, $request)) {
                 session(['previous_url' => $previousUrl]);
             }
@@ -29,6 +21,7 @@ class SavePreviousUrl
 
         return $next($request);
     }
+
 
     // Fungsi untuk memvalidasi URL
     protected function isValidUrl($url, Request $request)

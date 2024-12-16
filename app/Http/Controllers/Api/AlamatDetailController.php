@@ -18,20 +18,30 @@ class AlamatDetailController extends Controller
      */
     public function getAlamatByIdPelanggan($id)
     {
-        $alamat = Pelanggan::with(['alamat.kodePos', 'alamat'])
-            ->where('id_pelanggan', $id)
-            ->get();
+        // Mencari pelanggan berdasarkan ID
+        $pelanggan = Pelanggan::with(['alamat.kodePos'])
+            ->find($id); // Menggunakan find() untuk mendapatkan pelanggan
 
-        if (!$alamat) {
+        // Jika pelanggan tidak ditemukan, kembalikan 404
+        if (!$pelanggan) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Alamat tidak ditemukan'
+                'message' => 'Pelanggan tidak ditemukan'
             ], 404);
         }
 
+        // Jika pelanggan ditemukan tetapi tidak memiliki alamat
+        if ($pelanggan->alamat->isEmpty()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Pelanggan tidak memiliki alamat'
+            ], 404);
+        }
+
+        // Jika pelanggan ditemukan dan memiliki alamat
         return response()->json([
             'status' => 'success',
-            'data' => $alamat
+            'data' => $pelanggan->alamat
         ], 200);
     }
 
@@ -54,8 +64,16 @@ class AlamatDetailController extends Controller
         $alamat = Alamat::with(['kodePos.kota.provinsi'])
             ->where('id_pelanggan', $pelanggan->id_pelanggan)
             ->get();
+        
+        // Periksa apakah alamat kosong
+        if ($alamat->isEmpty()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Alamat tidak ditemukan'
+            ], 404);
+        }
 
-        $formatAlamat = $alamat->map(function ($item){
+        $formatAlamat = $alamat->map(function ($item) {
             return [
                 'id_alamat' => $item->id_alamat,
                 'id_pelanggan' => $item->id_pelanggan,
@@ -69,6 +87,7 @@ class AlamatDetailController extends Controller
                 ],
             ];
         });
+
         return response()->json([
             'status' => 'success',
             'data' => $formatAlamat
@@ -77,30 +96,33 @@ class AlamatDetailController extends Controller
 
     public function getAlamatByIdAlamat(Request $request, $id_alamat)
     {
-        $alamat = Alamat::with(['kodePos.kota.provinsi'])
-        ->findOrFail($id_alamat);
-        // ->where('id_alamat', $id_alamat)
-        // ->get();
+        $pelanggan = Auth::user()->pelanggan;
 
-        // $formatAlamat = $alamat->map(function($data){
-        //     return[
-        //         'id_alamat'=> $data->id_alamat,
-        //         'id_pelanggan'=> $data->id_alamat, 
-        //         'nama_jalan' => $data->nama_jalan,
-        //         'detail_lokasi' => $data->detail_lokasi,
-        //         'kode_pos' => [
-        //             'id_kode_pos' => $data->kodePos->id_kode_pos,
-        //             'nama_kota' => $data->kodePos->kota->nama_kota ?? '', // Ensure to handle null
-        //             'nama_provinsi' => $data->kodePos->kota->provinsi->provinsi ?? '', // Ensure to handle null
-        //             'kode_pos' => $data->kodePos->kode_pos,
-        //         ],
-        //     ];
-        // });
+        // Mencari alamat berdasarkan ID
+        $alamat = Alamat::with(['kodePos.kota.provinsi', 'pelanggan'])
+            ->find($id_alamat); // Menggunakan find() untuk mendapatkan alamat
+
+        // Jika alamat tidak ditemukan, kembalikan 404
+        if (!$alamat) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Alamat tidak ditemukan.'
+            ], 404);
+        }
+
+        // Jika alamat ditemukan tetapi bukan milik pelanggan yang sedang login, kembalikan 403
+        if ($alamat->id_pelanggan !== $pelanggan->id_pelanggan) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Anda tidak memiliki izin untuk mengakses alamat ini.'
+            ], 403);
+        }
+
+        // Jika alamat ditemukan dan milik pelanggan yang sedang login
         return response()->json([
-            'status'=>true,
-            'data'=>$alamat
+            'status' => true,
+            'data' => $alamat
         ]);
-
     }
 
     // Create a new address
@@ -108,8 +130,27 @@ class AlamatDetailController extends Controller
     {
         $pelanggan = Auth::user()->pelanggan;
 
+        $requiredFields = ['id_kode_pos', 'nama_jalan', 'detail_lokasi'];
+        $missingFields = array_diff($requiredFields, array_keys($request->all()));
+
+        if (!empty($missingFields)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. Missing required fields: ' . implode(', ', $missingFields),
+            ], 400); // 400 Bad Request
+        }
+
+        $kodepos = KodePos::find($request->id_kode_pos, 'id_kode_pos');
+
+        if(!$kodepos){
+            return response()->json([
+                'status' => false,
+                'message' => 'kode pos tidak ditemukan'
+            ], 404);
+        }
+
         $validatedData = $request->validate([
-            'id_kode_pos' => 'required|exists:tb_kode_pos,id_kode_pos',
+            'id_kode_pos' => 'required',
             'nama_jalan' => 'required|string|max:255',
             'detail_lokasi' => 'nullable|string|max:255',
         ]);
@@ -124,7 +165,37 @@ class AlamatDetailController extends Controller
     // Update an existing address
     public function update(Request $request, $id_alamat)
     {
-        $address = Alamat::findOrFail($id_alamat);
+        $address = Alamat::find($id_alamat);
+        if(!$address){
+            return response()->json([
+                'status' => false,
+                'message' => 'param salah, alamat tidak ditemukan'
+            ], 404);
+        }
+
+        $pelanggan = Auth::user()->pelanggan;
+        if ($address->id_pelanggan !== $pelanggan->id_pelanggan) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Anda tidak memiliki izin untuk mengedit alamat ini.'
+            ], 403); // 403 Forbidden
+        }
+    
+        if ($request->isNotFilled(['id_kode_pos', 'nama_jalan', 'detail_lokasi'])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. No data provided.',
+            ], 400); // 400 Bad Request
+        }
+
+        $kodepos = KodePos::find($request->id_kode_pos, 'id_kode_pos');
+
+        if(!$kodepos){
+            return response()->json([
+                'status' => false,
+                'message' => 'kode pos tidak ditemukan'
+            ], 404);
+        }
 
         $validatedData = $request->validate([
             'id_kode_pos' => 'sometimes|required|exists:tb_kode_pos,id_kode_pos',
@@ -140,24 +211,38 @@ class AlamatDetailController extends Controller
     // Delete an address
     public function destroy($id_alamat)
     {
-        $address = Alamat::findOrFail($id_alamat);
-        $address->delete();
+        // Mencari alamat berdasarkan ID
+        $address = Alamat::find($id_alamat);
+        if (!$address) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Param salah, alamat tidak ditemukan'
+            ], 404); // 404 Not Found
+        }
 
-        return response()->json(['message' => 'Address deleted successfully']);
-    }
+        // Ambil pelanggan dari pengguna yang sedang login
+        $pelanggan = Auth::user()->pelanggan;
 
-    // Get cities by province
-    public function getCitiesByProvince($id_provinsi)
-    {
-        $cities = Kota::where('id_provinsi', $id_provinsi)->get();
-        return response()->json($cities);
-    }
+        // Periksa apakah alamat milik pelanggan yang sedang login
+        if ($address->id_pelanggan !== $pelanggan->id_pelanggan) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Anda tidak memiliki izin untuk menghapus alamat ini.'
+            ], 403); // 403 Forbidden
+        }
 
-    // Get postal codes by city
-    public function getPostalCodesByCity($id_kota)
-    {
-        $postalCodes = KodePos::where('id_kota', $id_kota)->get();
-        return response()->json($postalCodes);
+        try {
+            // Hapus alamat
+            $address->delete();
+
+            return response()->json(['message' => 'Address deleted successfully']);
+        } catch (\Exception $e) {
+            // Jika terjadi kesalahan saat menghapus alamat, kembalikan 500
+            return response()->json([
+                'status' => false,
+                'message' => 'Terjadi kesalahan saat menghapus alamat. Silakan coba lagi nanti.'
+            ], 500); // 500 Internal Server Error
+        }
     }
 }
 

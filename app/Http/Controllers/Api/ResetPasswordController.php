@@ -14,8 +14,14 @@ class ResetPasswordController extends Controller
 {
     public function forgotPassword(Request $request)
     {
+        if (empty($request->all())) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. No data provided.',
+            ], 400); // 400 Bad Request
+        }
         $validator = Validator::make($request->all(), [
-            'email' => 'required|email|exists:tb_users,email',
+            'email' => 'required|email',
         ]);
 
         if ($validator->fails()) {
@@ -28,6 +34,13 @@ class ResetPasswordController extends Controller
 
         try {
             $user = User::where('email', $request->email)->first();
+
+            if (!$user) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Email tidak ditemukan',
+                ], 404); // 404 Not Found
+            }        
             
             // Generate JWT token
             $token = JWTAuth::customClaims(['exp' => now()->addHour()->timestamp])
@@ -45,7 +58,7 @@ class ResetPasswordController extends Controller
             return response()->json([
                 'status' => 'success',
                 'message' => 'Link reset password telah dikirim ke email Anda'
-            ]);
+            ], 200);
 
         } catch (\Exception $e) {
             return response()->json([
@@ -78,6 +91,16 @@ class ResetPasswordController extends Controller
 
     public function resetPassword(Request $request, $token)
     {
+        $requiredFields = ['password', 'password_confirmation'];
+        $missingFields = array_diff($requiredFields, array_keys($request->all()));
+
+        if (!empty($missingFields)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. Missing required fields: ' . implode(', ', $missingFields),
+            ], 400); // 400 Bad Request
+        }
+
         $validator = Validator::make($request->all(), [
             'password' => 'required|string|min:8|confirmed',
         ]);

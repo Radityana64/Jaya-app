@@ -79,6 +79,13 @@
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
   <script>
+    function getCsrfToken() {
+        return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+
+    function getJwtToken() {
+        return document.querySelector('meta[name="api-token"]').getAttribute('content');
+    }
    $(document).ready(function() {
     // Fetch product data from API
     fetchProducts();
@@ -126,7 +133,11 @@
             $.ajax({
                 url: `http://127.0.0.1:8000/api/produk/status/${productId}`,
                 method: 'PUT',
-                contentType: 'application/json', // Tambahkan content type
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': getCsrfToken(),
+                    'Authorization': `Bearer ${getJwtToken()}`
+                },
                 data: JSON.stringify({ 
                     status: 'nonaktif',
                     id_produk: productId 
@@ -175,7 +186,11 @@ function nonaktifProductVariation(variationId) {
             $.ajax({
                 url: `http://127.0.0.1:8000/api/produk-variasi/status/${variationId}`,
                 method: 'PUT',
-                contentType: 'application/json', // Tambahkan content type
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': getCsrfToken(),
+                    'Authorization': `Bearer ${getJwtToken()}`
+                }, // Tambahkan content type
                 data: JSON.stringify({ 
                     status: 'nonaktif',
                     id_produk_variasi: variationId 

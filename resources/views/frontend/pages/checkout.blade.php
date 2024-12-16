@@ -326,7 +326,7 @@
     async function loadCustomerInfo() {
         const jwtToken = getJwtToken();
         try {
-            const response = await fetch('http://127.0.0.1:8000/api/pelanggan/profil', {
+            const response = await fetch('http://127.0.0.1:8000/api/user/profil', {
                 headers: {
                     'Authorization': `Bearer ${jwtToken}`,
                     'Accept': 'application/json'
@@ -826,7 +826,7 @@ async function saveShippingAndVoucher() {
     // Simpan jasa pengiriman
     if (selectedShippingOption) {
         try {
-            const shippingResponse = await fetch('http://127.0.0.1:8000/api/pilih-jasa', {
+            const shippingResponse = await fetch(`http://127.0.0.1:8000/api/pilih-jasa/${cartData.id_pemesanan}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -852,10 +852,12 @@ async function saveShippingAndVoucher() {
 }
 
 async function sendSnapToken(snap_token) {
+    const jwtToken = getJwtToken();
     const response = await fetch('http://127.0.0.1:8000/api/payments/snap', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${jwtToken}`,
         },
         body: JSON.stringify({
             snap_token: snap_token, // Kirim Snap token

@@ -130,7 +130,7 @@
             </div>
         @endif
 
-        <form action="{{ route('password.update') }}" method="POST">
+        <form action="{{ route('password.update', $token) }}" method="POST">
             @csrf
             @method('PUT') 
             <input type="hidden" name="token" value="{{ $token }}">

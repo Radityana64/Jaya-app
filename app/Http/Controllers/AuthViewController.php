@@ -97,10 +97,16 @@ class AuthViewController extends Controller
                 session(['auth.token' => $responseData['data']['token']]);
                 session(['user_info' => $responseData['data']['user']]);
 
-                // Redirect ke halaman sebelumnya atau ke dashboard jika tidak ada previous_url
-                $previousUrl = session('previous_url', '/product-grids'); // Ganti '/product-grids' dengan halaman default Anda
-                session()->forget('previous_url'); // Hapus previous_url setelah digunakan
-                return redirect()->to($previousUrl);
+                // $previousUrl = session('previous_url', route('index'));
+                // if ($previousUrl === route('login')) {
+                //     $previousUrl = route('index'); // Redirect ke index jika previous URL adalah login
+                // }
+                
+                // session()->forget('previous_url');
+                // Log::info('Redirecting to: ' . $previousUrl);
+
+                // Redirect
+                return redirect()->route('index');
                 
             } else {
                 // Jika tidak berhasil, ambil pesan error dari response

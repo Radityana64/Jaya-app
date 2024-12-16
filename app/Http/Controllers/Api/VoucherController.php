@@ -18,6 +18,21 @@ class VoucherController extends Controller
     // Membuat Voucher
     public function store(Request $request)
     {
+        $requiredFields = ['kode_voucher', 
+        'nama_voucher', 
+        'diskon', 
+        'min_pembelian', 
+        'status', 
+        'tanggal_mulai', 
+        'tanggal_akhir'];
+        $missingFields = array_diff($requiredFields, array_keys($request->all()));
+
+        if (!empty($missingFields)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. Missing required fields: ' . implode(', ', $missingFields),
+            ], 400); // 400 Bad Request
+        }
         $validator = Validator::make($request->all(), [
             'kode_voucher' => 'required|unique:tb_voucher,kode_voucher',
             'nama_voucher' => 'required|string|max:255',
@@ -28,11 +43,20 @@ class VoucherController extends Controller
             'tanggal_akhir' => 'required|date|after:tanggal_mulai'
         ]);
 
+        $kodeVoucherConflict = \DB::table('tb_voucher')->where('kode_voucher', $request->kode_voucher)->exists();
+    
+        if ($kodeVoucherConflict) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Conflict. Kode Voucher Sudah Digunakan',
+            ], 409); // 409
+        }
+
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'errors' => $validator->errors()
-            ], 400);
+            ], 422);
         }
 
         $voucher = Voucher::create([
@@ -54,25 +78,53 @@ class VoucherController extends Controller
     }
 
     // Update Voucher
-    public function update(Request $request, $id)
+    public function update($id, Request $request)
     {
-        $voucher = Voucher::findOrFail($id);
+        $voucher = Voucher::find($id);
+
+        if(!$voucher){
+            return response()->json([
+                'status'=>false,
+                'message'=>'voucher tidak ditemukan'
+            ], 404);
+        }
+
+        if ($request->isNotFilled(['kode_voucher', 'nama_voucher', 'diskon', 'min_pemeblian', 'tanggal_mulai', 'tanggal_mulai', 'tanggal_akhir'])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. No data provided.',
+            ], 400); // 400 Bad Request
+        }
 
         $validator = Validator::make($request->all(), [
             'kode_voucher' => 'sometimes|unique:tb_voucher,kode_voucher,' . $id . ',id_voucher',
             'nama_voucher' => 'sometimes|string|max:255',
             'diskon' => 'sometimes|numeric|min:0|max:100',
             'min_pembelian' => 'sometimes|numeric|min:0',
-            'status' => 'sometimes|in:aktif,nonaktif,kadaluarsa',
+            'status' => 'sometimes|in:aktif,nonaktif',
             'tanggal_mulai' => 'sometimes|date',
             'tanggal_akhir' => 'sometimes|date|after:tanggal_mulai'
         ]);
+
+        if ($request->has('kode_voucher') && $request->kode_voucher !== $voucher->kode_voucher) {
+            $kodeVoucherConflict = \DB::table('tb_voucher')
+                ->where('kode_voucher', $request->kode_voucher)
+                ->where('id_voucher', '!=', $id)
+                ->exists();
+        
+            if ($kodeVoucherConflict) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Conflict. Kode Voucher Sudah Digunakan',
+                ], 409); // 409
+            }
+        }
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'errors' => $validator->errors()
-            ], 400);
+            ], 422);
         }
 
         $voucher->update($request->only([
@@ -89,6 +141,17 @@ class VoucherController extends Controller
 
     public function distribusiVoucher(Request $request)
     {
+
+        $requiredFields = ['id_voucher', 'kriteria_distribusi'];
+        $missingFields = array_diff($requiredFields, array_keys($request->all()));
+
+        if (!empty($missingFields)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. Missing required fields: ' . implode(', ', $missingFields),
+            ], 400); // 400 Bad Request
+        }
+
         $validator = Validator::make($request->all(), [
             'id_voucher' => 'required|exists:tb_voucher,id_voucher',
             'kriteria_distribusi' => 'required|in:semua_pelanggan,pelanggan_aktif,pelanggan_loyal',
@@ -100,7 +163,7 @@ class VoucherController extends Controller
             return response()->json([
                 'success' => false,
                 'errors' => $validator->errors()
-            ], 400);
+            ], 422);
         }
 
         $voucher = Voucher::findOrFail($request->id_voucher);
@@ -155,101 +218,170 @@ class VoucherController extends Controller
     
     public function gunakanVoucher(Request $request)
     {
+        $requiredFields = ['id_pemesanan', 'id_voucher', 'jumlah_diskon'];
+        $missingFields = array_diff($requiredFields, array_keys($request->all()));
+
+        if (!empty($missingFields)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. Missing required fields: ' . implode(', ', $missingFields),
+            ], 400); // 400 Bad Request
+        }
+
         $validator = Validator::make($request->all(), [
             'id_pemesanan' => 'required|exists:tb_pemesanan,id_pemesanan',
             'id_voucher' => 'required|exists:tb_voucher,id_voucher',
             'jumlah_diskon' => 'required|min:0'
         ]);
-
+    
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'errors' => $validator->errors()
-            ], 400);
+            ], 422);
         }
-
-        return DB::transaction(function () use ($request) {
-            // Ambil pemesanan dan voucher
-            $pemesanan = Pemesanan::findOrFail($request->id_pemesanan);
-            $voucher = Voucher::findOrFail($request->id_voucher);
-            $gunakanVoucher = $request->jumlah_diskon;
-
-            // Validasi status voucher
-            $this->validasiVoucher($voucher, $pemesanan);
-
-            // Cari voucher pelanggan
-            $voucherPelanggan = VoucherPelanggan::where('id_voucher', $voucher->id_voucher)
-                ->where('id_pelanggan', $pemesanan->id_pelanggan)
-                ->where('status', 'belum_terpakai')
-                ->first();
-
-            if (!$voucherPelanggan) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Voucher tidak ditemukan atau sudah terpakai.'
-                ], 400);
-            }
+    
+        try {
+            return DB::transaction(function () use ($request) {
+                // Ambil pemesanan dan voucher
+                $pemesanan = Pemesanan::findOrFail($request->id_pemesanan);
+                $voucher = Voucher::findOrFail($request->id_voucher);
+                $jumlahDiskon = $request->jumlah_diskon;
+    
+                // Validasi status voucher
+                $validasiVoucher = $this->validasiVoucher($voucher, $pemesanan);
+                if (!$validasiVoucher['success']) {
+                    return response()->json($validasiVoucher, 422);
+                }
+    
+                // Cari voucher pelanggan
+                $voucherPelanggan = VoucherPelanggan::where('id_voucher', $voucher->id_voucher)
+                    ->where('id_pelanggan', $pemesanan->id_pelanggan)
+                    ->where('status', 'belum_terpakai')
+                    ->first();
+    
+                if (!$voucherPelanggan) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Voucher tidak ditemukan atau sudah terpakai.'
+                    ], 400);
+                }
+                    
+                $prosesVoucher = $this->prosesVoucher($pemesanan, $voucherPelanggan, $voucher, $jumlahDiskon);
                 
-            $this->prosesVoucher($pemesanan, $voucherPelanggan, $voucher, $gunakanVoucher);
-
-
+                if (!$prosesVoucher['success']) {
+                    return response()->json($prosesVoucher, 422);
+                }
+    
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Voucher berhasil digunakan'
+                ]);
+            });
+        } catch (\Exception $e) {
             return response()->json([
-                'success' => true,
-                'message' => 'Voucher berhasil digunakan'
-            ]);
-        });
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
-
-    private function validasiVoucher(Voucher $voucher, Pemesanan $pemesanan)
+    
+    public function validasiVoucher(Voucher $voucher, Pemesanan $pemesanan)
     {
+        // Cek status pemesanan
+        if ($pemesanan->status_pemesanan === 'Pesanan_Diterima') {
+            return [
+                'success' => false,
+                'message' => 'Voucher tidak dapat digunakan pada pesanan yang sudah diterima'
+            ];
+        }
+    
         // Cek status voucher
         if ($voucher->status !== 'aktif') {
-            throw new \Exception('Voucher tidak aktif');
+            return [
+                'success' => false,
+                'message' => 'Voucher tidak aktif'
+            ];
         }
-
+    
         // Cek rentang tanggal voucher
         $sekarang = Carbon::now();
         if ($sekarang->lt(Carbon::parse($voucher->tanggal_mulai)) || 
             $sekarang->gt(Carbon::parse($voucher->tanggal_akhir))) {
-            throw new \Exception('Voucher sudah kadaluarsa');
+            return [
+                'success' => false,
+                'message' => 'Voucher sudah kadaluarsa'
+            ];
         }
-
+    
         // Cek minimal pembelian
         if ($pemesanan->total_harga < $voucher->min_pembelian) {
-            throw new \Exception('Total pembelian tidak mencukupi untuk voucher ini');
+            return [
+                'success' => false,
+                'message' => 'Total pembelian tidak mencukupi untuk voucher ini'
+            ];
         }
-
+    
         // Cek voucher pelanggan
         $voucherPelanggan = VoucherPelanggan::where('id_voucher', $voucher->id_voucher)
             ->where('id_pelanggan', $pemesanan->id_pelanggan)
             ->first();
-
+    
         // Validasi tambahan untuk penggunaan berulang
         if ($voucherPelanggan->status === 'terpakai') {
-            throw new \Exception('Belum memenuhi syarat penggunaan ulang voucher');
+            return [
+                'success' => false,
+                'message' => 'Belum memenuhi syarat penggunaan ulang voucher'
+            ];
         }
-
-        return true;
-    }    
     
-    // Proses Penggunaan Voucher
-    private function prosesVoucher(Pemesanan $pemesanan, VoucherPelanggan $voucherPelanggan, Voucher $voucher, $gunakanVoucher)
+        return [
+            'success' => true
+        ];
+    }
+    
+    public function prosesVoucher(Pemesanan $pemesanan, VoucherPelanggan $voucherPelanggan, Voucher $voucher, $jumlahDiskon)
     {
-        // Catat penggunaan voucher
-        $penggunaanVoucher = PenggunaanVoucher::create([
-            'id_voucher_pelanggan' => $voucherPelanggan->id_voucher_pelanggan,
-            'id_pemesanan' => $pemesanan->id_pemesanan,
-            'jumlah_diskon' => $gunakanVoucher,
-            'tanggal_pemakaian' => now()
-        ]);
-
-        // Update status voucher pelanggan
-        $voucherPelanggan->update([
-            'status' => 'terpakai',
-            'tanggal_diperbarui' => now()
-        ]);
-
-        return $penggunaanVoucher;
+        $calculatedVoucherDiscount = round(($voucher->diskon / 100) * $pemesanan->total_harga, 2);
+    
+        // Validasi jumlah diskon yang diinput
+        if (round($jumlahDiskon, 2) != $calculatedVoucherDiscount) {
+            return [
+                'success' => false,
+                'message' => 'Jumlah diskon tidak sesuai'
+            ];
+        }
+    
+        try {
+            // Catat penggunaan voucher
+            $penggunaanVoucher = PenggunaanVoucher::create([
+                'id_voucher_pelanggan' => $voucherPelanggan->id_voucher_pelanggan,
+                'id_pemesanan' => $pemesanan->id_pemesanan,
+                'jumlah_diskon' => $calculatedVoucherDiscount,
+                'tanggal_pemakaian' => now()
+            ]);
+    
+            // Update status voucher pelanggan
+            $voucherPelanggan->update([
+                'status' => 'terpakai',
+                'tanggal_diperbarui' => now()
+            ]);
+    
+            // Update total harga pemesanan
+            $pemesanan->total_harga -= $calculatedVoucherDiscount;
+            $pemesanan->save();
+    
+            return [
+                'success' => true,
+                'data' => $penggunaanVoucher
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Gagal memproses voucher: ' . $e->getMessage(),
+                'status_code' => 500
+            ];
+        }
     }
 
     // Mendapatkan voucher yang aktif untuk pelanggan yang sedang login
@@ -264,9 +396,16 @@ class VoucherController extends Controller
                 ->where('tanggal_mulai', '<=', now())
                 ->where('tanggal_akhir', '>=', now());
             })
+            ->where('status', 'belum_terpakai')
             ->with('voucher')
             ->get();
 
+        if ($activeVouchers->isEmpty()) {
+            return response()->json([
+                'status' => false,
+                'message'=> 'Pelanggan Tidak memiliki voucher yang bisa digunakan'
+            ],404);
+        }
         return response()->json([
             'success' => true,
             'data' => $activeVouchers
@@ -274,74 +413,123 @@ class VoucherController extends Controller
     }
 
     // Dapatkan Voucher Tersedia untuk Pelanggan
-    public function getVoucherTersedia($idPelanggan)
+    public function getVoucherById($id_voucher)
     {
-        $voucherTersedia = Voucher::where('status', 'aktif')
-            ->where('tanggal_mulai', '<=', now())
-            ->where('tanggal_akhir', '>=', now())
-            ->whereDoesntHave('voucherPelanggan', function($query) use ($idPelanggan) {
-                $query->where('id_pelanggan', $idPelanggan)
-                      ->where('status', 'terpakai');
-            })
-            ->get();
+        // Cek apakah voucher ada
+        $voucher = Voucher::find($id_voucher);
+        if (!$voucher) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Voucher tidak ditemukan'
+            ], 404);
+        }
+
+        // Ambil voucher dengan informasi pelanggan yang memiliki voucher
+        $voucherDetail = Voucher::with(['voucherPelanggan' => function($query) {
+            $query->with('pelanggan');
+        }])
+        ->where('id_voucher', $id_voucher)
+        ->first();
+
+        // Transformasi data untuk respons
+        $voucherPelanggan = $voucherDetail->voucherPelanggan->map(function($item) {
+            return [
+                'id_voucher_pelanggan' => $item->id_voucher_pelanggan,
+                'pelanggan' => [
+                    'id_pelanggan' => $item->pelanggan->id_pelanggan,
+                    'nama_pelanggan' => $item->pelanggan->nama_pelanggan
+                ],
+                'status_voucher_pelanggan' => $item->status,
+                'tanggal_dibuat' => $item->tanggal_dibuat,
+                'tanggal_diperbarui' => $item->tanggal_diperbarui
+            ];
+        });
 
         return response()->json([
             'success' => true,
-            'data' => $voucherTersedia
+            'voucher' => [
+                'id_voucher' => $voucher->id_voucher,
+                'kode_voucher' => $voucher->kode_voucher,
+                'nama_voucher' => $voucher->nama_voucher,
+                'diskon' => $voucher->diskon,
+                'min_pembelian' => $voucher->min_pembelian,
+                'status' => $voucher->status,
+                'tanggal_mulai' => $voucher->tanggal_mulai,
+                'tanggal_akhir' => $voucher->tanggal_akhir
+            ],
+            'pelanggan_voucher' => $voucherPelanggan
         ]);
     }
 
     // Mendapatkan semua voucher
     public function getAllVouchers()
     {
-        $vouchers = Voucher::all();
+        try {
+            $vouchers = Voucher::all();
 
-        return response()->json([
-            'success' => true,
-            'data' => $vouchers
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $vouchers
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+               'status'=> 'error',
+               'message'=>'data tidak dapat diambil'. $e->getMessage()  
+            ], 500);
+        }
+        
     }
 
     // Mendapatkan voucher yang dimiliki oleh pelanggan
-    public function getAllActiveVouchers()
-    {
-        // Mengambil semua data dari voucher pelanggan yang statusnya aktif dengan relasi voucher
-        $vouchers = VoucherPelanggan::whereHas('voucher', function($query) {
-                $query->where('status', 'aktif')
-                    ->where('tanggal_mulai', '<=', now())
-                    ->where('tanggal_akhir', '>=', now());
-            })
-            ->with('voucher')
-            ->get();
+    // public function getAllActiveVouchers()
+    // {
+    //     // Mengambil semua data dari voucher pelanggan yang statusnya aktif dengan relasi voucher
+    //     $vouchers = VoucherPelanggan::whereHas('voucher', function($query) {
+    //             $query->where('status', 'aktif')
+    //                 ->where('tanggal_mulai', '<=', now())
+    //                 ->where('tanggal_akhir', '>=', now());
+    //         })
+    //         ->with('voucher')
+    //         ->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => $vouchers
-        ]);
-    }
+    //     return response()->json([
+    //         'success' => true,
+    //         'data' => $vouchers
+    //     ]);
+    // }
 
     // Hapus Voucher
-    public function destroy($id)
+    public function nonaktif(Request $request, $id)
     {
-        $voucher = Voucher::findOrFail($id);
-
-        // Cek apakah voucher sudah pernah digunakan
-        $sudahDigunakan = VoucherPelanggan::where('id_voucher', $id)
-            ->where('status', 'terpakai')
-            ->exists();
-
-        if ($sudahDigunakan) {
+        $voucher = Voucher::find($id);
+        if (!$voucher) {
             return response()->json([
                 'success' => false,
-                'message' => 'Voucher tidak dapat dihapus karena sudah pernah digunakan'
-            ], 400);
+                'message' => 'Voucher tidak ditemukan'
+            ], 404);
         }
 
-        $voucher->delete();
+        $validator = Validator::make($request->all(), [
+            'status' => 'required|in:aktif,nonaktif'            
+        ]);
+        
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        
+        // Cek apakah voucher sudah pernah digunakan
+        $voucher->update([
+            'status' => 'nonaktif',
+            'tanggal_diperbarui' => now()
+        ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Voucher berhasil dihapus'
+            'message' => 'Voucher berhasil dinonaktifkan'
         ]);
     }
 

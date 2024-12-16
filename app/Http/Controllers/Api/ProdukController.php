@@ -22,73 +22,120 @@ class ProdukController extends Controller
 {
     public function index(Request $request)
     {
-        // Mengambil semua produk tanpa relasi produk variasi
-        $produk = Produk::with('kategori','gambarProduk')
-        ->where('status', 'aktif')
-        ->get();
+        try {
+            // Mengambil semua produk tanpa relasi produk variasi
+            $produk = Produk::with('kategori','gambarProduk')
+            ->where('status', 'aktif')
+            ->get();
 
-        // Mengolah data untuk menambahkan harga terendah
-        $produk->transform(function ($item) {
-            // Mengambil variasi produk
-            $variations = $item->produkVariasi;
+            // Mengolah data untuk menambahkan harga terendah
+            $produk->transform(function ($item) {
+                // Mengambil variasi produk
+                $variations = $item->produkVariasi;
 
-            // Cek apakah variasi ada
-            if ($variations->isNotEmpty()) {
-                // Mengambil harga terendah
-                $minPrice = $variations->min('harga');
-            } else {
-                $minPrice = null; // Jika tidak ada variasi, bisa diset ke null atau 0
-            }
+                // Cek apakah variasi ada
+                if ($variations->isNotEmpty()) {
+                    // Mengambil harga terendah
+                    $minPrice = $variations->min('harga');
+                } else {
+                    $minPrice = null; // Jika tidak ada variasi, bisa diset ke null atau 0
+                }
 
-            // Menambahkan harga terendah ke objek produk
-            return [
-                'id_produk' => $item->id_produk,
-                'kategori' => $item->kategori,
-                'nama_produk' => $item->nama_produk,
-                'harga' => $minPrice, // Menyertakan harga terendah
-                'deskripsi' => $item->deskripsi,
-                'tanggal_dibuat' => $item->tanggal_dibuat,
-                'tanggal_diperbarui' => $item->tanggal_diperbarui,
-                'gambar_produk' => $item->gambarProduk // Menyertakan gambar produk
-                
-            ];
-        });
-
-        return response()->json([
-            'status' => 'success',
-            'data' => $produk
-        ], 200);
+                // Menambahkan harga terendah ke objek produk
+                return [
+                    'id_produk' => $item->id_produk,
+                    'kategori' => $item->kategori,
+                    'nama_produk' => $item->nama_produk,
+                    'harga' => $minPrice, // Menyertakan harga terendah
+                    'deskripsi' => $item->deskripsi,
+                    'tanggal_dibuat' => $item->tanggal_dibuat,
+                    'tanggal_diperbarui' => $item->tanggal_diperbarui,
+                    'gambar_produk' => $item->gambarProduk // Menyertakan gambar produk
+                    
+                ];
+            });
+            return response()->json([
+                'status' => 'success',
+                'data' => $produk
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Terjadi Kesalahan, Tidak dapat mengambil  data produk: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function show($id)
     {
-        // Mengambil produk berdasarkan ID dengan relasi yang diperlukan
-        $produk = Produk::with(['detailProduk','gambarProduk', 'produkVariasi'=> function ($query) {
-            $query->where('status', 'aktif')
-                  ->with(['detailProdukVariasi.opsiVariasi.tipeVariasi', 'gambarVariasi']);
-                    }
-                    ])->findOrFail($id);
+        try{
+            // Mengambil produk berdasarkan ID dengan relasi yang diperlukan
+            $produk = Produk::with(['detailProduk','gambarProduk', 'produkVariasi'=> function ($query) {
+                $query->where('status', 'aktif')
+                    ->with(['detailProdukVariasi.opsiVariasi.tipeVariasi', 'gambarVariasi']);
+                        }
+                    ])->find($id);
+            
+            if (!$produk) {
+                    return response()->json([
+                        'status' => false,
+                        'message' => 'Produk tidak ditemukan'
+                    ], 404);
+                }
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $produk
-        ], 200);
+            return response()->json([
+                'status' => 'success',
+                'data' => $produk
+            ], 200);
+
+        }catch(\Exception $e){
+            return response()->json([
+                'status' => false,
+                'message' => 'Terjadi Kesalahan, Tidak dapat mengambil  data produk: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function showVariation()
     {
-        // Mengambil variasi produk berdasarkan ID variasi
-        $variasi = TipeVariasi::with(['opsiVariasi'])
-                    ->get();
+        try{
+            // Mengambil variasi produk berdasarkan ID variasi
+            $variasi = TipeVariasi::with(['opsiVariasi'])
+                        ->get();
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $variasi
-        ], 200);
+            return response()->json([
+                'status' => 'success',
+                'data' => $variasi
+            ], 200);
+        }catch(\Exception $e){
+            return response()->json([
+                'status' => false,
+                'message' => 'Terjadi Kesalahan, Tidak dapat mengambil Variasi: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function store(Request $request)
     {
+
+        $requiredFields = ['id_kategori', 'nama_produk', 'gambar_produk', 'status'];
+        $missingFields = array_diff($requiredFields, array_keys($request->all()));
+
+        if (!empty($missingFields)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. Missing required fields: ' . implode(', ', $missingFields),
+            ], 400); // 400 Bad Request
+        }
+
+        $kategori = Kategori::find($request->id_kategori);
+        if (!$kategori) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Not Found. Kategori dengan ID ' . $request->id_kategori . ' tidak ditemukan.',
+            ], 404); // 404 Not Found
+        }
+    
         // Validasi request
         $validator = $this->validateProductRequest($request);
         
@@ -140,21 +187,17 @@ class ProdukController extends Controller
     private function validateProductRequest(Request $request)
     {
         $rules = [
-            'id_kategori' => [
-                'sometimes', 
-                'required', 
-                'exists:tb_kategori,id_kategori'
+            'id_kategori' => [ 
+                'required'
             ],
-            'nama_produk' => [
-                'sometimes', 
+            'nama_produk' => [ 
                 'required', 
                 'string', 
                 'max:255'
             ],
             'deskripsi' => 'nullable|string',
-            // 'status' => 'required|in:aktif,nonaktif',
+            'status' => 'required|in:aktif,nonaktif',
 
-            
             // Validasi detail produk
             'detail_produk.deskripsi_detail' => 'nullable|string',
             'detail_produk.url_video' => 'nullable|url',
@@ -169,7 +212,7 @@ class ProdukController extends Controller
             'variasi.*.berat' => 'required_with:variasi|numeric|min:0',
             'variasi.*.hpp' => 'required_with:variasi|numeric|min:0',
             'variasi.*.harga' => 'required_with:variasi|numeric|min:0',
-            // 'variasi.*.status' => 'required|in:aktif,nonaktif',
+            'variasi.*.status' => 'required|in:aktif,nonaktif',
 
             // Validasi tipe variasi
             'variasi.*.tipe_variasi' => 'array',
@@ -368,11 +411,11 @@ class ProdukController extends Controller
         $rules = [
             // Validasi dasar produk
             'id_kategori' => [
-                'required', 
+                'sometimes', 
                 'exists:tb_kategori,id_kategori'
             ],
             'nama_produk' => [
-                'required', 
+                'sometimes', 
                 'string', 
                 'max:255'
             ],
@@ -434,193 +477,250 @@ class ProdukController extends Controller
 
     // Contoh penggunaan dalam method update
     public function update(Request $request, $id)
-{
-    $validator = $this->validateProductEditRequest($request);
-    
-    if ($validator->fails()) {
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Validasi gagal',
-            'errors' => $validator->errors()
-        ], 422);
-    }
+    {
+        if ($request->isNotFilled([
+            'deskripsi',
+            'detail_produk',
+            'gambar_produk',
+            'variasi_existing',
+            'variasi_baru'
+        ])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. No data provided.',
+            ], 400); // 400 Bad Request
+        }
 
-    DB::beginTransaction();
-    try {
         // Ambil produk yang akan diupdate
-        $produk = Produk::findOrFail($id);
-        
-        // Update informasi dasar produk
-        $produk->update([
-            'id_kategori' => $request->id_kategori,
-            'nama_produk' => $request->nama_produk,
-            'deskripsi' => $request->deskripsi,
-            // 'status' => $request->status
-        ]);
+        $produk = Produk::find($id);
 
-        // Update detail produk
-        $this->updateProductDetails($produk, $request);
+        if (!$produk) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Produk tidak ditemukan'
+            ], 404);
+        }
 
-        // Update gambar produk
-        $this->updateProductImages($produk, $request);
+        if ($request->has('id_kategori')) {
+            $kategori = Kategori::find($request->id_kategori);
+            if (!$kategori) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Not Found. Kategori dengan ID ' . $request->id_kategori . ' tidak ditemukan.',
+                ], 404); // 404 Not Found
+            }
+        }
 
-        // Update variasi yang sudah ada
-        $this->updateExistingVariations($produk, $request->variasi_existing);
+        $validator = $this->validateProductEditRequest($request);
 
-        // Tambah variasi baru
-        $this->addNewVariations($produk, $request->variasi_baru);
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validasi gagal',
+                'errors' => $validator->errors()
+            ], 422);
+        }
 
-        DB::commit();
-        return response()->json([
-            'status' => 'success',
-            'data' => $produk->load([
-                'produkVariasi.detailProdukVariasi.opsiVariasi.tipeVariasi', 
-                'gambarProduk', 
-                'detailProduk'
-            ])
-        ]);
+        DB::beginTransaction();
+        try {
+            // Update informasi dasar produk
+            $updateData = [];
+            if ($request->has('id_kategori')) {
+                $updateData['id_kategori'] = $request->id_kategori;
+            }
+            if ($request->has('nama_produk')) {
+                $updateData['nama_produk'] = $request->nama_produk;
+            }
+            if ($request->has('deskripsi')) {
+                $updateData['deskripsi'] = $request->deskripsi;
+            }
 
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return response()->json([
-            'status' => 'error',
-            'message' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ], 500);
+            if (!empty($updateData)) {
+                $produk->update($updateData);
+            }
+
+            // Update detail produk
+            $this->updateProductDetails($produk, $request);
+
+            // Update gambar produk
+            $this->updateProductImages($produk, $request);
+
+            // Update variasi yang sudah ada
+            $this->updateExistingVariations($produk, $request->variasi_existing);
+
+            // Tambah variasi baru
+            $this->addNewVariations($produk, $request->variasi_baru);
+
+            DB::commit();
+            return response()->json([
+                'status' => 'success',
+                'data' => $produk->load([
+                    'produkVariasi.detailProdukVariasi.opsiVariasi.tipeVariasi',
+                    'gambarProduk',
+                    'detailProduk'
+                ])
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ], 500);
+        }
     }
-}
 
-private function updateProductDetails(Produk $produk, Request $request)
-{
-    if ($request->has('detail_produk')) {
-        DetailProduk::updateOrCreate(
-            ['id_produk' => $produk->id_produk],
-            [
-                'deskripsi_detail' => $request->input('detail_produk.deskripsi_detail'),
-                'url_video' => $request->input('detail_produk.url_video')
-            ]
-        );
+
+    private function updateProductDetails(Produk $produk, Request $request)
+    {
+        if ($request->has('detail_produk')) {
+            DetailProduk::updateOrCreate(
+                ['id_produk' => $produk->id_produk],
+                [
+                    'deskripsi_detail' => $request->input('detail_produk.deskripsi_detail'),
+                    'url_video' => $request->input('detail_produk.url_video')
+                ]
+            );
+        }
     }
-}
 
-private function updateProductImages(Produk $produk, Request $request)
-{
-    // Hapus gambar lama jika ada gambar baru
-    if ($request->hasFile('gambar_produk')) {
-        // Hapus gambar lama dari Cloudinary
-        foreach ($produk->gambarProduk as $gambarLama) {
+    private function updateProductImages(Produk $produk, Request $request)
+    {
+        // Hapus gambar lama jika ada gambar baru
+        if ($request->hasFile('gambar_produk')) {
+            // Hapus gambar lama dari Cloudinary
+            foreach ($produk->gambarProduk as $gambarLama) {
+                if ($gambarLama->public_id) {
+                    Cloudinary::destroy($gambarLama->public_id);
+                }
+            }
+            
+            // Hapus record gambar lama dari database
+            $produk->gambarProduk()->delete();
+
+            // Upload gambar baru
+            $this->uploadProductImages($produk, $request->file('gambar_produk'));
+        }
+    }
+
+    private function updateExistingVariations(Produk $produk, $existingVariations)
+    {
+        if (!$existingVariations) return;
+
+        foreach ($existingVariations as $variasiData) {
+            // Temukan variasi yang akan diupdate
+            $variasi = ProdukVariasi::findOrFail($variasiData['id_produk_variasi']);
+            
+            // Update detail variasi
+            $variasi->update([
+                'stok' => $variasiData['stok'],
+                'berat' => $variasiData['berat'],
+                'hpp' => $variasiData['hpp'],
+                'harga' => $variasiData['harga'],
+                'status' => $variasiData['status']
+            ]);
+
+            // Proses gambar variasi jika ada
+            $this->updateVariationImages($variasi, $variasiData['gambar'] ?? null);
+        }
+    }
+
+    private function updateVariationImages(ProdukVariasi $variasi, $images)
+    {
+        if (!$images) return;
+
+        // Hapus gambar variasi lama
+        foreach ($variasi->gambarVariasi as $gambarLama) {
             if ($gambarLama->public_id) {
                 Cloudinary::destroy($gambarLama->public_id);
             }
         }
-        
-        // Hapus record gambar lama dari database
-        $produk->gambarProduk()->delete();
+        $variasi->gambarVariasi()->delete();
 
         // Upload gambar baru
-        $this->uploadProductImages($produk, $request->file('gambar_produk'));
+        $this->uploadVariationImage($variasi, $images);
     }
-}
 
-private function updateExistingVariations(Produk $produk, $existingVariations)
-{
-    if (!$existingVariations) return;
+    private function addNewVariations(Produk $produk, $newVariations)
+    {
+        if (!$newVariations) return;
 
-    foreach ($existingVariations as $variasiData) {
-        // Temukan variasi yang akan diupdate
-        $variasi = ProdukVariasi::findOrFail($variasiData['id_produk_variasi']);
-        
-        // Update detail variasi
-        $variasi->update([
-            'stok' => $variasiData['stok'],
-            'berat' => $variasiData['berat'],
-            'hpp' => $variasiData['hpp'],
-            'harga' => $variasiData['harga'],
-            'status' => $variasiData['status']
-        ]);
-
-        // Proses gambar variasi jika ada
-        $this->updateVariationImages($variasi, $variasiData['gambar'] ?? null);
-    }
-}
-
-private function updateVariationImages(ProdukVariasi $variasi, $images)
-{
-    if (!$images) return;
-
-    // Hapus gambar variasi lama
-    foreach ($variasi->gambarVariasi as $gambarLama) {
-        if ($gambarLama->public_id) {
-            Cloudinary::destroy($gambarLama->public_id);
-        }
-    }
-    $variasi->gambarVariasi()->delete();
-
-    // Upload gambar baru
-    $this->uploadVariationImage($variasi, $images);
-}
-
-private function addNewVariations(Produk $produk, $newVariations)
-{
-    if (!$newVariations) return;
-
-    foreach ($newVariations as $variasiData) {
-        // Buat variasi baru
-        $variasi = $produk->variasi()->create([
-            'stok' => $variasiData['stok'],
-            'berat' => $variasiData['berat'],
-            'hpp' => $variasiData['hpp'],
-            'harga' => $variasiData['harga'],
-            'status' => $variasiData['status'],
-            'default' => 'salah'
-        ]);
-
-        // Proses tipe variasi dan opsi
-        $this->processNewVariationTypes($variasi, $variasiData['tipe_variasi']);
-
-        // Proses gambar variasi
-        if (isset($variasiData['gambar']) && $variasiData['gambar']) {
-            $this->uploadVariationImage($variasi, $variasiData['gambar']);
-        }
-    }
-}
-
-private function processNewVariationTypes(ProdukVariasi $variasi, $tipeVariasiData)
-{
-    foreach ($tipeVariasiData as $tipeVariasi) {
-        // Pastikan tipe variasi sudah ada di database (dari API atau tersimpan)
-        $tipe = TipeVariasi::findOrFail($tipeVariasi['id_tipe_variasi']);
-
-        // Proses opsi variasi
-        foreach ($tipeVariasi['opsi_variasi'] as $opsiData) {
-            // Jika diberikan id_opsi_variasi, gunakan opsi yang sudah ada
-            if (isset($opsiData['id_opsi_variasi'])) {
-                $opsi = OpsiVariasi::where('id_tipe_variasi', $tipe->id_tipe_variasi)
-                    ->findOrFail($opsiData['id_opsi_variasi']);
-            } 
-            // Jika diberikan nama, buat opsi baru
-            elseif (isset($opsiData['nama_opsi'])) {
-                $opsi = OpsiVariasi::create([
-                    'id_tipe_variasi' => $tipe->id_tipe_variasi,
-                    'nama_opsi' => $opsiData['nama_opsi']
-                ]);
-            } 
-            // Jika tidak ada id atau nama, lempar exception
-            else {
-                throw new \Exception('Opsi variasi tidak valid');
-            }
-
-            // Simpan detail produk variasi
-            DetailProdukVariasi::create([
-                'id_produk_variasi' => $variasi->id_produk_variasi,
-                'id_opsi_variasi' => $opsi->id_opsi_variasi
+        foreach ($newVariations as $variasiData) {
+            // Buat variasi baru
+            $variasi = $produk->variasi()->create([
+                'stok' => $variasiData['stok'],
+                'berat' => $variasiData['berat'],
+                'hpp' => $variasiData['hpp'],
+                'harga' => $variasiData['harga'],
+                'status' => $variasiData['status'],
+                'default' => 'salah'
             ]);
+
+            // Proses tipe variasi dan opsi
+            $this->processNewVariationTypes($variasi, $variasiData['tipe_variasi']);
+
+            // Proses gambar variasi
+            if (isset($variasiData['gambar']) && $variasiData['gambar']) {
+                $this->uploadVariationImage($variasi, $variasiData['gambar']);
+            }
         }
     }
-}
+
+    private function processNewVariationTypes(ProdukVariasi $variasi, $tipeVariasiData)
+    {
+        foreach ($tipeVariasiData as $tipeVariasi) {
+            // Pastikan tipe variasi sudah ada di database (dari API atau tersimpan)
+            $tipe = TipeVariasi::findOrFail($tipeVariasi['id_tipe_variasi']);
+
+            // Proses opsi variasi
+            foreach ($tipeVariasi['opsi_variasi'] as $opsiData) {
+                // Jika diberikan id_opsi_variasi, gunakan opsi yang sudah ada
+                if (isset($opsiData['id_opsi_variasi'])) {
+                    $opsi = OpsiVariasi::where('id_tipe_variasi', $tipe->id_tipe_variasi)
+                        ->findOrFail($opsiData['id_opsi_variasi']);
+                } 
+                // Jika diberikan nama, buat opsi baru
+                elseif (isset($opsiData['nama_opsi'])) {
+                    $opsi = OpsiVariasi::create([
+                        'id_tipe_variasi' => $tipe->id_tipe_variasi,
+                        'nama_opsi' => $opsiData['nama_opsi']
+                    ]);
+                } 
+                // Jika tidak ada id atau nama, lempar exception
+                else {
+                    throw new \Exception('Opsi variasi tidak valid');
+                }
+
+                // Simpan detail produk variasi
+                DetailProdukVariasi::create([
+                    'id_produk_variasi' => $variasi->id_produk_variasi,
+                    'id_opsi_variasi' => $opsi->id_opsi_variasi
+                ]);
+            }
+        }
+    }
 
     public function updateStatus(Request $request, $id)
     {
+        // Find the product
+        $produk = Produk::find($id);
+        if (!$produk) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Produk Tidak Ditemukan'
+            ], 404);
+        }
+
+        $requiredFields = ['status'];
+        $missingFields = array_diff($requiredFields, array_keys($request->all()));
+
+        if (!empty($missingFields)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. Missing required fields: ' . implode(', ', $missingFields),
+            ], 400); // 400 Bad Request
+        }
         // Validate input
         $validator = Validator::make($request->all(), [
             'status' => 'required|in:aktif,nonaktif',
@@ -632,14 +732,12 @@ private function processNewVariationTypes(ProdukVariasi $variasi, $tipeVariasiDa
                 'status' => false,
                 'message' => 'Validasi gagal',
                 'errors' => $validator->errors()
-            ], 400);
+            ], 422);
         }
 
         // Start database transaction
         DB::beginTransaction();
         try {
-            // Find the product
-            $produk = Produk::findOrFail($id);
 
             // Update product status
             $produk->status = $request->status;
@@ -671,6 +769,23 @@ private function processNewVariationTypes(ProdukVariasi $variasi, $tipeVariasiDa
 
     public function updateVariationStatus(Request $request, $variationId)
     {
+        $produkVariasi = ProdukVariasi::find($variationId);
+        if (!$produkVariasi) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Variasi Tidak Ditemukan'
+            ], 404);
+        }
+
+        $requiredFields = ['status'];
+        $missingFields = array_diff($requiredFields, array_keys($request->all()));
+
+        if (!empty($missingFields)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. Missing required fields: ' . implode(', ', $missingFields),
+            ], 400); // 400 Bad Request
+        }
         // Validate input
         $validator = Validator::make($request->all(), [
             'status' => 'required|in:aktif,nonaktif',
@@ -682,13 +797,13 @@ private function processNewVariationTypes(ProdukVariasi $variasi, $tipeVariasiDa
                 'status' => false,
                 'message' => 'Validasi gagal',
                 'errors' => $validator->errors()
-            ], 400);
+            ], 422);
         }
 
         DB::beginTransaction();
         try {
             // Find the product variation
-            $produkVariasi = ProdukVariasi::findOrFail($variationId);
+            
 
             // Update variation status
             $produkVariasi->status = $request->status;

@@ -62,6 +62,14 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
+    function getCsrfToken() {
+        return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+
+    function getJwtToken() {
+        return document.querySelector('meta[name="api-token"]').getAttribute('content');
+    }
+
 document.addEventListener('DOMContentLoaded', function() {
     class KategoriEditManager {
         constructor() {
@@ -292,7 +300,11 @@ document.addEventListener('DOMContentLoaded', function() {
             // Kirim data ke backend
             fetch(`/api/kategori/update/${this.kategoriId}`, {
                 method: 'POST', // Ganti ke POST jika backend tidak mendukung PUT dengan FormData
-                body: formData
+                body: formData,
+                headers: {
+                'X-CSRF-TOKEN': getCsrfToken(),
+                'Authorization': `Bearer ${getJwtToken()}`
+            }
             })
             .then(response => {
                 if (!response.ok) {

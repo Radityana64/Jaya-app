@@ -122,8 +122,8 @@
                 })
                 .then((willDelete) => {
                     if (willDelete) {
-                        fetch(`http://127.0.0.1:8000/api/vouchers/${id}`, {
-                            method: 'DELETE',
+                        fetch(`http://127.0.0.1:8000/api/vouchers/nonaktif/${id}`, {
+                            method: 'PUT',
                             headers: {
                                 'Authorization': 'Bearer ' + getJwtToken(),
                                 'Content-Type': 'application/json',
@@ -132,7 +132,7 @@
                         })
                         .then(response => {
                             if (response.ok) {
-                                swal("Poof! Your coupon has been deleted!", {
+                                swal("Poof! Your coupon has been nonaktif!", {
                                     icon: "success",
                                 });
                                 // Refresh the table
@@ -148,21 +148,13 @@
                                     populateTable(data.data);
                                 });
                             } else {
-                                swal("Error deleting the coupon!");
+                                swal("Error for Nonaktif coupon!");
                             }
                         })
-                        .catch(error => console.error('Error deleting data:', error));
+                        .catch(error => console.error('Error Nonaktif data:', error));
                     }
                 });
             });
-        }
-
-        function getCsrfToken() {
-            return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-        }
-
-        function getJwtToken() {
-            return document.querySelector('meta[name="api-token"]').getAttribute('content');
         }
     });
 </script>

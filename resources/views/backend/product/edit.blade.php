@@ -151,6 +151,13 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.1/js/bootstrap-select.min.js"></script>
 
 <script>
+    function getCsrfToken() {
+        return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+
+    function getJwtToken() {
+        return document.querySelector('meta[name="api-token"]').getAttribute('content');
+    }
     document.addEventListener('DOMContentLoaded', function() {
     class ProductEditManager {
         constructor() {
@@ -437,15 +444,18 @@
 
             // Tambahkan payload sebagai JSON string
             formData.append('payload', JSON.stringify(productPayload));
+            formData.append('_method', 'PUT');
 
             try {
                 const response = await fetch(`/api/produk/edit/${this.productId}`, {
                     method: 'POST',
                     body: formData,
                     headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json'
-                    }
+                        'X-CSRF-TOKEN': getCsrfToken(),
+                        'Authorization': `Bearer ${getJwtToken()}`
+                    },
+                    contentType: false,
+                    processData: false,
                 });
 
                 const data = await response.json();

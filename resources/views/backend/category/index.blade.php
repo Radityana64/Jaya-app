@@ -81,7 +81,13 @@
   <!-- Page level custom scripts -->
   <script src="{{asset('backend/js/demo/datatables-demo.js')}}"></script>
   <script>
+    function getCsrfToken() {
+        return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
 
+    function getJwtToken() {
+        return document.querySelector('meta[name="api-token"]').getAttribute('content');
+    }
       let table;
       let categoriesData = []; // Store fetched categories data
 
@@ -162,7 +168,8 @@
                             method: 'PUT',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                'X-CSRF-TOKEN': getCsrfToken(),
+                                'Authorization': `Bearer ${getJwtToken()}`
                             },
                             body: JSON.stringify({ status: 'nonaktif' })
                         })

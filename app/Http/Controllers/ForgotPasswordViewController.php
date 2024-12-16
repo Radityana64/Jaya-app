@@ -54,30 +54,26 @@ class ForgotPasswordViewController extends Controller
     }
 
     // Memproses permintaan reset password
-    public function resetPassword(Request $request)
-    {
-        // Validasi input
+    public function PasswordReset(Request $request, $token) {
+        // Validate input
         $validator = Validator::make($request->all(), [
-            'token' => 'required|string',
             'password' => 'required|string|min:8|confirmed',
         ]);
-
+    
         if ($validator->fails()) {
             return redirect()->back()
                 ->withErrors($validator)
                 ->withInput();
         }
-
+    
         try {
-            // Mengirimkan request ke API untuk mereset password menggunakan metode PUT
-            $response = Http::put($this->apiBaseUrl.'/api/password/reset/'.$request->token, [
+            $response = Http::put($this->apiBaseUrl.'/api/password/reset/'.$token, [
                 'password' => $request->password,
                 'password_confirmation' => $request->password_confirmation,
             ]);
-
-            // Mengambil data dari response
+    
             $responseData = $response->json();
-
+    
             if ($response->successful()) {
                 return redirect()->route('login')->with('status', 'Password berhasil direset! Silakan login dengan password baru Anda.');
             } else {

@@ -54,7 +54,7 @@ Route::post('/login', [AuthViewController::class, 'login'])->name('login.submit'
 Route::get('/forgot/password', [ForgotPasswordViewController::class, 'formEmail'])->name('forgot.password');
 Route::post('/password/forgot', [ForgotPasswordViewController::class, 'sendResetLink'])->name('password.email');
 Route::get('/password/reset/{token}', [ForgotPasswordViewController::class, 'showResetPasswordForm'])->name('password.reset');
-Route::put('/password/reset/', [ForgotPasswordViewController::class, 'resetPassword'])->name('password.update');
+Route::put('/reset/password/{token}', [ForgotPasswordViewController::class, 'PasswordReset'])->name('password.update');
 
 Route::get('/beranda', function(){
     return view('pelanggan.beranda');

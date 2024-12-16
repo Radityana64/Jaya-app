@@ -157,6 +157,13 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.1/js/bootstrap-select.min.js"></script>
 
 <script>
+    function getCsrfToken() {
+        return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+
+    function getJwtToken() {
+        return document.querySelector('meta[name="api-token"]').getAttribute('content');
+    }
     $(document).ready(function() {
     let allCategories = []; 
     let variations = []; // Data variasi dari API
@@ -1121,6 +1128,10 @@ function handleFormSubmission(e) {
         $.ajax({
             url: 'http://127.0.0.1:8000/api/produk/tambah',
             method: 'POST',
+            headers: {
+                    'X-CSRF-TOKEN': getCsrfToken(),
+                    'Authorization': `Bearer ${getJwtToken()}`
+                },
             data: formData,
             contentType: false,
             processData: false,

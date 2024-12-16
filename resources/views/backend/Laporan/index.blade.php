@@ -79,6 +79,9 @@
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
     <script>
+        function getJwtToken() {
+            return $('meta[name="api-token"]').attr('content');
+        }
         document.getElementById('tampilkanLaporan').addEventListener('click', function () {
             const tanggalMulai = document.getElementById('tanggalMulai').value;
             const tanggalAkhir = document.getElementById('tanggalAkhir').value;
@@ -87,11 +90,14 @@
                 tanggal_mulai: tanggalMulai,
                 tanggal_akhir: tanggalAkhir,
             };
+            const jwtToken = getJwtToken();
 
             fetch('http://127.0.0.1:8000/api/laporan/penjualan', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${jwtToken}`,
+
                 },
                 body: JSON.stringify(requestData),
             })

@@ -108,57 +108,58 @@
 
     // Fetch and display categories
     async function fetchCategories() {
-        try {
-            const response = await fetch(apiCategories);
-            const result = await response.json();
-            const categoryList = document.getElementById('categoryList');
+    try {
+        const response = await fetch(apiCategories);
+        const result = await response.json();
+        const categoryList = document.getElementById('categoryList');
 
-            // Clear previous content
-            categoryList.innerHTML = '';
+        // Clear previous content
+        categoryList.innerHTML = '';
 
-            if (result.data && result.data.length > 0) {
-                const categoriesContainer = document.createElement('div');
-                categoriesContainer.classList.add('category-carousel', 'owl-carousel');
+        if (result.data && result.data.length > 0) {
+            const categoriesContainer = document.createElement('div');
+            categoriesContainer.classList.add('category-carousel', 'owl-carousel');
 
-                result.data.filter(category => category.level === '1').forEach(category => {
-                    const categoryItem = document.createElement('div');
-                    categoryItem.classList.add('single-banner');
-                    categoryItem.innerHTML = `
-                        <div style="height: 300px; display: flex; flex-direction: column;">
-                            <img src="${category.gambar_kategori || 'https://via.placeholder.com/300x200'}" 
-                                 alt="${category.nama_kategori}" 
-                                 style="width: 100%; height: 200px; object-fit: cover;">
-                            <div class="content" style="padding: 20px; text-align: center;">
-                                <h3>${category.nama_kategori}</h3>
-                                <a href="/etalase/produk?category=${category.id_kategori}">Discover Now</a>
-                            </div>
+            result.data.filter(category => category.level === '1').forEach(category => {
+                const categoryItem = document.createElement('div');
+                categoryItem.classList.add('single-banner');
+                categoryItem.innerHTML = `
+                    <div style="height: 300px; display: flex; flex-direction: column;">
+                        <img src="${category.gambar_kategori || 'https://via.placeholder.com/400x300'}" 
+                             alt="${category.nama_kategori}" 
+                             style="width: 100%; height: 300px; object-fit: cover; max-width: 540px;">
+                        <div class="content" style="padding: 10px; text-align: center;">
+                            <h3>${category.nama_kategori}</h3>
+                            <a href="/etalase/produk?category=${category.id_kategori}">Discover Now</a>
                         </div>
-                    `;
-                    categoriesContainer.appendChild(categoryItem);
-                });
+                    </div>
+                `;
+                categoriesContainer.appendChild(categoryItem);
+            });
 
-                categoryList.appendChild(categoriesContainer);
+            categoryList.appendChild(categoriesContainer);
 
-                // Initialize Owl Carousel for categories
+            // Initialize Owl Carousel for categories
+            $(document).ready(function() {
                 $('.category-carousel').owlCarousel({
                     loop: true,
-                    margin: 10,
+                    margin: 2,
                     nav: true,
                     responsive: {
                         0: { items: 1 },
                         600: { items: 3 },
-                        1000: { items: 4 }
+                        1000: { items: 3 }
                     }
                 });
-            } else {
-                console.log('No categories found');
-                categoryList.innerHTML = '<p>No categories available</p>';
-            }
-        } catch (error) {
-            console.error('Error fetching categories:', error);
+            });
+        } else {
+            console.log('No categories found');
+            categoryList.innerHTML = '<p>No categories available</p>';
         }
+    } catch (error) {
+        console.error('Error fetching categories:', error);
     }
-
+}
     // Fetch and display products
     async function fetchProducts() {
         try {
@@ -178,7 +179,7 @@
                         <div class="col-sm-6 col-md-4 col-lg-4 p-b-35">
                             <div class="single-product">
                                 <div class="product-img">
-                                    <a href="/product-detail/${product.id_produk}">
+                                    <a href="/produk-detail/${product.id_produk}">
                                         <img class="default-img" src="${product.gambar_produk[0]?.gambar || 'https://via.placeholder.com/300x300'}" 
                                              alt="${product.nama_produk}" 
                                              style="height: 300px; object-fit: cover;">
@@ -186,7 +187,7 @@
                                     </a>
                                 </div>
                                 <div class="product-content">
-                                    <h3><a href="/product-detail/${product.id_produk}">${product.nama_produk}</a></h3>
+                                    <h3><a href="/produk-detail/${product.id_produk}">${product.nama_produk}</a></h3>
                                     <div class="product-price">
                                         <span>Rp ${product.harga ? product.harga.toLocaleString() : 'N/A'}</span>
                                     </div>

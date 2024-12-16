@@ -163,7 +163,8 @@ async function fetchProducts(searchTerm = '', categoryTerm = '') {
 
             if (categoryTerm) {
                 allProducts = allProducts.filter(product => 
-                    product.kategori.id_kategori === parseInt(categoryTerm)
+                    product.kategori.id_kategori === parseInt(categoryTerm) || 
+                    product.kategori.id_induk === parseInt(categoryTerm)
                 );
             }
             

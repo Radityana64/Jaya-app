@@ -16,6 +16,7 @@ use App\Models\Provinsi;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
 class PengirimanController extends Controller
 {
@@ -32,14 +33,35 @@ class PengirimanController extends Controller
 
     public function pilihAlamatPengiriman(Request $request)
     {
+        if ($request->isNotFilled(['id_alamat'])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. No data provided.',
+            ], 400); // 400 Bad Request
+        }
         try {
-            $validated = $request->validate([
-                'id_alamat' => 'required|exists:tb_alamat,id_alamat'
+            // Validasi input dasar
+            $validator = Validator::make($request->all(), [
+                'id_alamat' => [
+                    'required',
+                    'integer',
+                    'min:1'
+                ]
             ]);
+
+            // Tangani kesalahan validasi
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Validasi gagal',
+                    'errors' => $validator->errors()
+                ], 422); // Unprocessable Entity
+            }
 
             $user = $request->user();
             $pelanggan = Pelanggan::where('id_user', $user->id_user)->first();
 
+            // Cek apakah pelanggan ada
             if (!$pelanggan) {
                 return response()->json([
                     'error' => 'Unauthorized',
@@ -47,20 +69,30 @@ class PengirimanController extends Controller
                 ], 401);
             }
 
-            $alamat = Alamat::with(['kodePos.kota.provinsi'])
+            // Validasi kepemilikan alamat
+            $alamat = Alamat::where('id_alamat', $request->id_alamat)
                 ->where('id_pelanggan', $pelanggan->id_pelanggan)
-                ->findOrFail($validated['id_alamat']);
+                ->first();
 
+            // Jika alamat tidak ditemukan atau tidak milik pelanggan
+            if (!$alamat) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Alamat tidak ditemukan atau bukan milik Anda'
+                ], 404); // Bad Request
+            }
+
+            // Dapatkan pesanan keranjang
             $pemesanan = $this->getPemesananKeranjang($pelanggan);
             if (!$pemesanan) {
                 return response()->json([
-                    'error' => 'Keranjang belanja tidak ditemukan',
-                    'code' => 'CART_NOT_FOUND'
+                    'error' => 'Keranjang belanja tidak ditemukan'
                 ], 404);
             }
 
+            // Update alamat pengiriman
             $pemesanan->update([
-                'alamat_pengiriman' => $validated['id_alamat']
+                'alamat_pengiriman' => $alamat->id_alamat
             ]);
 
             return response()->json([
@@ -73,6 +105,7 @@ class PengirimanController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+            
             return response()->json([
                 'error' => 'Terjadi kesalahan sistem',
                 'code' => 'SYSTEM_ERROR'
@@ -88,33 +121,23 @@ class PengirimanController extends Controller
 
             if (!$pelanggan) {
                 return response()->json([
-                    'error' => 'Unauthorized',
-                    'code' => 'USER_UNAUTHORIZED'
-                ], 401);
+                    'error' => 'Unauthorized'
+                ], 403);
             }
 
             $pemesanan = $this->getPemesananKeranjang($pelanggan);
             if (!$pemesanan) {
                 return response()->json([
-                    'error' => 'Keranjang belanja tidak ditemukan',
-                    'code' => 'CART_NOT_FOUND'
+                    'error' => 'Pemesanan tidak ditemukan'
                 ], 404);
             }
 
             if (!$pemesanan->alamat_pengiriman) {
                 return response()->json([
-                    'error' => 'Alamat pengiriman belum dipilih',
-                    'code' => 'SHIPPING_ADDRESS_REQUIRED'
+                    'error' => 'Alamat pengiriman belum dipilih'
                 ], 400);
             }
 
-            $pemesanan = $this->getPemesananKeranjang($pelanggan);
-            if (!$pemesanan) {
-                return response()->json([
-                    'error' => 'Keranjang belanja tidak ditemukan',
-                    'code' => 'CART_NOT_FOUND'
-                ], 404);
-            }
             // Get the selected address and its city ID
             $alamat = Alamat::with(['kodePos.kota.provinsi'])
                 ->findOrFail($pemesanan->alamat_pengiriman);
@@ -181,20 +204,21 @@ class PengirimanController extends Controller
         }
     }
 
-    public function pilihJasaPengiriman(Request $request)
+    public function pilihJasaPengiriman(Request $request, $id_pemesanan)
     {
-        try {
-            // Validate request
-            $validated = $request->validate([
-                'kurir' => 'required|string',
-                'layanan' => 'required|string',
-                'estimasi_pengiriman'=> 'required|string',
-                'biaya_pengiriman' => 'required|numeric'
-            ]);
-
+        $requiredFields = ['kurir', 'layanan', 'estimasi_pengiriman', 'biaya_pengiriman'];
+        $missingFields = array_diff($requiredFields, array_keys($request->all()));
+        // Jika ada field yang hilang, kembalikan error 400
+        if (!empty($missingFields)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. Field wajib belum diisi: ' . implode(', ', $missingFields)
+            ], 400);
+        }
             $user = $request->user();
             $pelanggan = Pelanggan::where('id_user', $user->id_user)->first();
 
+            // Cek apakah pelanggan ada
             if (!$pelanggan) {
                 return response()->json([
                     'error' => 'Unauthorized',
@@ -202,15 +226,40 @@ class PengirimanController extends Controller
                 ], 401);
             }
 
-            // Get active shopping cart
-            $pemesanan = $this->getPemesananProsesPembayaran($pelanggan);
+            // Cari pesanan yang sesuai dengan pelanggan dan ID pemesanan
+            $pemesanan = Pemesanan::where('id_pemesanan', $id_pemesanan)
+                ->where('id_pelanggan', $pelanggan->id_pelanggan)
+                ->whereNot('status_pemesanan', 'Pesanan_Diterima')
+                ->first();
+
+            // Cek apakah pesanan ditemukan
             if (!$pemesanan) {
                 return response()->json([
-                    'error' => 'Pesanan tidak ditemukan',
-                    'code' => 'ORDER NOT FOUND'
+                    'status' => 'error',
+                    'message' => 'Pesanan tidak ditemukan'
                 ], 404);
             }
+        try {
+            // Validasi input
+            $validator = Validator::make($request->all(), [
+                'kurir' => 'required|string|max:100',
+                'layanan' => 'required|string|max:100',
+                'estimasi_pengiriman' => 'required|string|max:50',
+                'biaya_pengiriman' => ['required', 
+                    'numeric' 
+                ]
+            ]);
 
+            // Tangani kesalahan validasi
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Validasi gagal',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Cek apakah alamat pengiriman sudah dipilih
             if (!$pemesanan->alamat_pengiriman) {
                 return response()->json([
                     'error' => 'Alamat pengiriman belum dipilih',
@@ -218,39 +267,48 @@ class PengirimanController extends Controller
                 ], 400);
             }
 
-            // Get the complete address
+            // Cek apakah detail pemesanan kosong
+            $detailPemesanan = $pemesanan->detailPemesanan;
+            if ($detailPemesanan->isEmpty()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Tidak ada produk dalam pesanan',
+                    'code' => 'EMPTY_ORDER'
+                ], 400);
+            }
+
+            // Dapatkan alamat lengkap
             $alamat = Alamat::with(['kodePos.kota.provinsi'])
                 ->findOrFail($pemesanan->alamat_pengiriman);
 
-            // Create shipping record
+            // Buat record pengiriman
             $pengiriman = Pengiriman::create([
                 'id_pemesanan' => $pemesanan->id_pemesanan,
-                'kurir' => $validated['kurir'] . ' ' . $validated['layanan'],
-                'biaya_pengiriman' => $validated['biaya_pengiriman'],
-                'estimasi_pengiriman' => $validated['estimasi_pengiriman'],
+                'kurir' => $request->input('kurir') . ' ' . $request->input('layanan'),
+                'biaya_pengiriman' => $request->input('biaya_pengiriman'),
+                'estimasi_pengiriman' => $request->input('estimasi_pengiriman'),
                 'status_pengiriman' => 'Belum_Bayar',
             ]);
                 
             $alamatLengkap = $this->buatAlamatLengkap($alamat);
 
-            // Update order with shipping address
+            // Update pesanan dengan alamat pengiriman
             $pemesanan->update([
-                // 'id_alamat' => $tempCart->id_alamat,
                 'alamat_pengiriman' => $alamatLengkap
             ]);
-
 
             return response()->json([
                 'message' => 'Jasa pengiriman berhasil dipilih',
                 'pengiriman' => $pengiriman,
                 'alamat_pengiriman' => $alamatLengkap
-            ]);
+            ], 201);
 
         } catch (\Exception $e) {
             Log::error('Error dalam memilih jasa pengiriman:', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+            
             return response()->json([
                 'error' => 'Terjadi kesalahan sistem',
                 'code' => 'SYSTEM_ERROR'
@@ -281,29 +339,29 @@ class PengirimanController extends Controller
         }
     }
 
-    private function getPemesananProsesPembayaran($pelanggan)
-    {
-        try {
-            $pemesanan = Pemesanan::with(['detailPemesanan.produkVariasi'])
-                ->where('id_pelanggan', $pelanggan->id_pelanggan)
-                ->where('status_pemesanan', 'Proses_Pembayaran')
-                ->orWhere('status_pemesanan', 'Dibayar')
-                ->first();
+    // private function getPemesananProsesPembayaran($pelanggan)
+    // {
+    //     try {
+    //         $pemesanan = Pemesanan::with(['detailPemesanan.produkVariasi'])
+    //             ->where('id_pelanggan', $pelanggan->id_pelanggan)
+    //             ->where('status_pemesanan', 'Proses_Pembayaran')
+    //             ->orWhere('status_pemesanan', 'Dibayar')
+    //             ->first();
                 
-            Log::info('Data Pemesanan:', [
-                'pemesanan' => $pemesanan
-            ]); // Tambahkan logging untuk debug
+    //         Log::info('Data Pemesanan:', [
+    //             'pemesanan' => $pemesanan
+    //         ]); // Tambahkan logging untuk debug
                 
-            return $pemesanan;
-        } catch (\Exception $e) {
-            Log::error('Error dalam mengambil pemesanan:', [
-                'pelanggan_id' => $pelanggan->id_pelanggan,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            return null;
-        }
-    }
+    //         return $pemesanan;
+    //     } catch (\Exception $e) {
+    //         Log::error('Error dalam mengambil pemesanan:', [
+    //             'pelanggan_id' => $pelanggan->id_pelanggan,
+    //             'error' => $e->getMessage(),
+    //             'trace' => $e->getTraceAsString()
+    //         ]);
+    //         return null;
+    //     }
+    // }
 
     private function hitungTotalBerat($pemesanan)
     {

@@ -78,7 +78,7 @@ $(document).ready(function() {
         const jwtToken = getJwtToken();
 
         $.ajax({
-            url: 'http://127.0.0.1:8000/api/pelanggan/profil',
+            url: 'http://127.0.0.1:8000/api/user/profil',
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${jwtToken}`,

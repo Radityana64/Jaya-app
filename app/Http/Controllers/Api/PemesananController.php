@@ -28,7 +28,13 @@ class PemesananController extends Controller
         'detailPemesanan.produkVariasi.detailProdukVariasi.opsiVariasi.tipeVariasi')
             ->where('id_pelanggan', $pelanggan->id_pelanggan)
             ->where('status_pemesanan', 'Keranjang')
-            ->firstOrFail();
+            ->first();
+
+        if(!$pemesanan){
+            return response()->json([
+                'message'=>'Tidak Ada Produk Dalam Keranjang',
+            ],404);
+        }
 
         // Format data untuk respons
         $formattedCart = [
@@ -79,20 +85,43 @@ class PemesananController extends Controller
     public function TambahKeKeranjang(Request $request)
     {
         try{
+
+            if (!$request->has('id_produk_variasi') || !$request->has('jumlah')) {
+                return response()->json([
+                    'error' => 'tidak lengkap',
+                    'message' => 'id_produk_variasi dan jumlah harus disertakan'
+                ], 400);
+            }
+    
             $user = $request->user();
             $pelanggan = Pelanggan::where('id_user', $user->id_user)->first();
+            
+            $produk = ProdukVariasi::where('id_produk_variasi', $request->id_produk_variasi)->first();
+            if (!$produk) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Produk variasi tidak ditemukan'
+                ], 404);
+            }
 
-            $validated = $request->validate([
+            $validator = Validator::make($request->all(), [
                 'id_produk_variasi'=>'required|exists:tb_produk_variasi,id_produk_variasi',
-                'jumlah'=>'required|integer|min:1',
+                'jumlah'=>['required', 
+                            'integer', 
+                            'min:1', 
+                            'max:' . $produk->stok
+                        ],
             ]);
             $alamatDefault = Alamat::where('id_pelanggan', $pelanggan->id_pelanggan)->first();
 
-            // if ($alamatDefault) {
-            //     $alamatLengkap = $this->buatAlamatLengkap($alamatDefault);
-            // } else {
-            //     $alamatLengkap = null;
-            // }
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Unprocessable Entity. Validation failed.',
+                    'errors' => $validator->errors(),
+                ], 422); // 422 Unprocessable Entity
+            }
+
             $pemesanan = Pemesanan::firstOrCreate(
                 ['id_pelanggan'=> $pelanggan->id_pelanggan, 
                 'status_pemesanan'=>'Keranjang'],
@@ -103,21 +132,20 @@ class PemesananController extends Controller
                 ]
             );
 
-            $produk = ProdukVariasi::findOrFail($validated['id_produk_variasi']);
             $detailPemesanan = DetailPemesanan::where('id_pemesanan', $pemesanan->id_pemesanan)
                 ->where('id_produk_variasi', $produk->id_produk_variasi)
                 ->first();
 
             if($detailPemesanan){
-                $detailPemesanan->jumlah += $validated['jumlah'];
+                $detailPemesanan->jumlah += $request->jumlah;
                 $detailPemesanan->sub_total_produk = $detailPemesanan->jumlah * $produk->harga;
                 $detailPemesanan->save();
             }else{
                 $detailPemesanan= new DetailPemesanan([
                     'id_pemesanan' => $pemesanan->id_pemesanan,
                     'id_produk_variasi'=>$produk->id_produk_variasi,
-                    'jumlah'=>$validated['jumlah'],
-                    'sub_total_produk'=>$produk->harga*$validated['jumlah']
+                    'jumlah'=>$request->jumlah,
+                    'sub_total_produk'=>$produk->harga*$request->jumlah
                 ]);
                 $detailPemesanan->save();
             }
@@ -134,38 +162,56 @@ class PemesananController extends Controller
             ],500);
         }
     }
-    // private function buatAlamatLengkap(Alamat $alamat)
-    // {
-    //     $kodePos = $alamat->kodePos;
-    //     $kota = $kodePos->kota;
-    //     $provinsi = $kota->provinsi;
-
-    //     return "{$alamat->nama_jalan}, {$alamat->detail_lokasi}, {$kota->nama_kota}, {$provinsi->provinsi}, {$kodePos->kode_pos}";
-    // }
 
     public function UpdateItemKeranjang(Request $request, $IdDetail){
         $user = $request->user();
         $pelanggan = Pelanggan::where('id_user', $user->id_user)->first();
 
-        $validated = $request->validate([
-            'jumlah'=>'required|integer|min:0',
-        ]);
+        if (!$request->has('jumlah')) {
+            return response()->json([
+                'message' => 'Pastikan Jumlah Ada'
+            ], 400);
+        }
 
-        $detailPemesanan = DetailPemesanan::findOrFail($IdDetail);
+        $detailPemesanan = DetailPemesanan::find($IdDetail);
+        if (!$detailPemesanan) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Detail Pemesanan Terkait Produk Tidak Ditemukan'
+            ], 404);
+        }
+        $produk = $detailPemesanan->produkVariasi;
+
+        $validator = Validator::make($request->all(), [
+            'jumlah'=>['required', 
+                        'integer', 
+                        'min:1', 
+                        'max:' . $produk->stok
+                    ],
+        ]);
+        
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unprocessable Entity. Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422); // 422 Unprocessable Entity
+        }
+
         $pemesanan = $detailPemesanan->pemesanan; 
 
         if($pemesanan->id_pelanggan !== $pelanggan->id_pelanggan || $pemesanan->status_pemesanan !== 'Keranjang'){
             return response()->json([
-               'message' => 'Unauthorized'
-            ], 403);
+               'message' => 'Pesanan Tidak Ditemukan/Tidak Berstatus Keranjang'
+            ], 404);
         }
 
-        if($validated['jumlah']==0){
+        if($request->jumlah==0){
             $detailPemesanan->delete();
         }else{
             $produk = $detailPemesanan->produkVariasi;
-            $detailPemesanan->jumlah = $validated['jumlah'];
-            $detailPemesanan->sub_total_produk = $produk->harga*$validated['jumlah'];
+            $detailPemesanan->jumlah = $request->jumlah;
+            $detailPemesanan->sub_total_produk = $produk->harga*$request->jumlah;
             $detailPemesanan->save();
         }
 
@@ -182,13 +228,20 @@ class PemesananController extends Controller
         $user = $request->user();
         $pelanggan = Pelanggan::where('id_user', $user->id_user)->first();
 
-        $detailPemesanan = DetailPemesanan::findOrFail($IdDetail);
+        $detailPemesanan = DetailPemesanan::find($IdDetail);
+        if (!$detailPemesanan) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Detail Pemesanan Terkait Produk Tidak Ditemukan'
+            ], 404);
+        }
+
         $pemesanan=$detailPemesanan->pemesanan;
 
         if($pemesanan->id_pelanggan !== $pelanggan->id_pelanggan || $pemesanan->status_pemesanan !== 'Keranjang'){
             return response()->json([
-                'message' => 'Unauthorized'
-            ]);
+               'message' => 'Pesanan Tidak Ditemukan/Tidak Berstatus Keranjang'
+            ], 404);
         }
         $detailPemesanan->delete();
         $this->updateOrderTotal($pemesanan);
@@ -352,6 +405,12 @@ class PemesananController extends Controller
         ->where('id_pelanggan', $pelanggan->id_pelanggan)
         ->where('status_pemesanan', '!=', 'keranjang')
         ->get();
+
+        if($pemesanan->isEmpty()){
+            return response()->json([
+                'message'=>'Pelanggan Belum Pernah Memesan Produk'
+            ], 404);
+        }
 
         $formattedPemesanan = [];
 

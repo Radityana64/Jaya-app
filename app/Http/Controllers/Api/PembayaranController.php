@@ -30,6 +30,22 @@ class PembayaranController extends Controller
 
     public function createPayment(Request $request)
     {
+        $requiredFields = [
+            'order_id', 'total_amount', 'items', 'address', 
+            'firstName', 'email', 'phone'
+        ];
+        
+        // Cari field yang hilang
+        $missingFields = array_diff($requiredFields, array_keys($request->all()));
+        
+        // Jika ada field yang hilang, kembalikan respons 400
+        if (!empty($missingFields)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. Field wajib belum diisi: ' . implode(', ', $missingFields),
+            ], 400);
+        }
+
         // Tambahkan detailed logging
         \Log::info('Received Payment Request Data:', $request->all());
 
@@ -56,11 +72,48 @@ class PembayaranController extends Controller
             ]);
 
             return response()->json([
-                'errors' => $validator->errors(),
                 'message' => 'Validation failed',
-                'received_data' => $request->all()
+                'errors' => $validator->errors()
             ], 422);
         }
+
+        $user = $request->user();
+        $pelanggan = Pelanggan::where('id_user', $user->id_user)->first();
+
+        // Cari pesanan dalam status keranjang
+        $pemesanan = Pemesanan::where('id_pemesanan', $request->input('order_id'))
+            ->where('id_pelanggan', $pelanggan->id_pelanggan)
+            ->where('status_pemesanan', 'Keranjang')
+            ->first();
+
+        // Cek apakah pesanan ditemukan
+        if (!$pemesanan) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Pesanan tidak ditemukan atau tidak dalam status keranjang'
+            ], 404);
+        }
+
+        // Validasi item-item dalam pesanan
+        $items = $request->input('items');
+        $detailPemesanan = $pemesanan->detailPemesanan;
+
+        foreach ($items as $item) {
+            // Cari detail pemesanan yang sesuai dengan item
+            $matchedDetail = $detailPemesanan->first(function ($detail) use ($item) {
+                return $detail->id_produk_variasi == $item['id'];
+            });
+
+            // Cek apakah produk variasi ada dalam pesanan
+            if (!$matchedDetail) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Produk variasi tidak ditemukan dalam pesanan',
+                    'invalid_item_id' => $item['id']
+                ], 404);
+            }
+        }
+
         // Ambil data dari permintaan
         $orderId = $request->input('order_id');
         $totalAmount = $request->input('total_amount');
@@ -226,7 +279,10 @@ class PembayaranController extends Controller
                     'status' => $transaction_status
                 ]);
                 
-                return response()->json(['status' => 'success']);
+                return response()->json([
+                    'status' => 'success', 
+                    'transaction_status' => $transaction_status
+                ]);
                 
             } catch (\Exception $e) {
                 DB::rollback();
@@ -317,44 +373,67 @@ class PembayaranController extends Controller
         Log::info('Failed payment handled', ['order_id' => $order->id_pemesanan]);
     }
 
-    public function getSnapToken($id_pemesanan)
-    {
-        $pembayaran = Pembayaran::with('pemesanan')
-            ->where('id_pemesanan', $id_pemesanan)
-            ->where('status_pembayaran', 'Pending')
-            ->whereHas('pemesanan', function($query) {
-                $query->where('status_pemesanan', 'Proses_Pembayaran');
-            })
-            ->first();
+    // public function getSnapToken($id_pemesanan)
+    // {
+    //     $pembayaran = Pembayaran::with('pemesanan')
+    //         ->where('id_pemesanan', $id_pemesanan)
+    //         ->where('status_pembayaran', 'Pending')
+    //         ->whereHas('pemesanan', function($query) {
+    //             $query->where('status_pemesanan', 'Proses_Pembayaran');
+    //         })
+    //         ->first();
 
-        if (!$pembayaran) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Pembayaran tidak ditemukan atau status tidak valid'
-            ], 404);
-        }
+    //     if (!$pembayaran) {
+    //         return response()->json([
+    //             'status' => 'error',
+    //             'message' => 'Pembayaran tidak ditemukan atau status tidak valid'
+    //         ], 404);
+    //     }
 
-        return response()->json([
-            'status' => 'success',
-            'data' => [
-                'snap_token' => $pembayaran->snap_token
-            ]
-        ]);
-    }
+    //     return response()->json([
+    //         'status' => 'success',
+    //         'data' => [
+    //             'snap_token' => $pembayaran->snap_token
+    //         ]
+    //     ]);
+    // }
     public function storeSnapToken(Request $request)
     {
+        $requiredFields = ['order_id', 'snap_token'];
+        // Cari field yang hilang
+        $missingFields = array_diff($requiredFields, array_keys($request->all()));
+        
+        // Jika ada field yang hilang, kembalikan respons 400
+        if (!empty($missingFields)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. Field wajib belum diisi: ' . implode(', ', $missingFields),
+            ], 400);
+        }
         // Validate input
         $request->validate([
             'snap_token' => 'required|string',
         ]);
 
-        $snap_token = $request->input('snap_token');
-
-        // Log for debugging
-        Log::info('Received Snap Token:', ['snap_token' => $snap_token]);
-
         try {
+            $user = $request->user();
+            $pelanggan = Pelanggan::where('id_user', $user->id_user)->first();
+
+            // Cari pesanan
+            $pemesanan = Pemesanan::where('id_pemesanan', $request->input('order_id'))
+                ->where('id_pelanggan', $pelanggan->id_pelanggan)
+                ->whereNotIn('status_pemesanan', ['Keranjang', 'Pesanan_Diterima'])
+                ->first();
+
+            // Validasi status pemesanan
+            if (!$pemesanan) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Pesanan tidak ditemukan atau status tidak valid'
+                ], 404);
+            }
             // Assuming you have an order_id sent in the request
+            $snap_token = $request->input('snap_token');
             $order_id = $request->input('order_id'); // Get order_id from request
 
             // Find or create payment entry

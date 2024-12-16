@@ -15,6 +15,23 @@ class AuthController extends Controller
 {
     public function register(Request $request)
     {
+
+        // if (empty($request->all())) {
+        //     return response()->json([
+        //         'status' => 'error',
+        //         'message' => 'Bad Request. No data provided.',
+        //     ], 400); // 400 Bad Request
+        // }
+        $requiredFields = ['username', 'telepon', 'email', 'password'];
+        $missingFields = array_diff($requiredFields, array_keys($request->all()));
+
+        if (!empty($missingFields)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. Missing required fields: ' . implode(', ', $missingFields),
+            ], 400); // 400 Bad Request
+        }
+
         $validator = Validator::make($request->all(),[
             'username' => 'required|string|max:255',
             'telepon' => 'required|string|max:15|unique:tb_pelanggan',
@@ -22,8 +39,22 @@ class AuthController extends Controller
             'password'=> 'required|string|min:6',
         ]);
 
-        if($validator->fails()){
-            return response()->json(['error'=>$validator->errors()], 400);
+        $emailConflict = \DB::table('tb_users')->where('email', $request->email)->exists();
+        $teleponConflict = \DB::table('tb_pelanggan')->where('telepon', $request->telepon)->exists();
+    
+        if ($emailConflict || $teleponConflict) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Conflict. The email or phone number is already in use.',
+            ], 409); // 409
+        }
+        
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unprocessable Entity. Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422); // 422
         }
 
         \DB::beginTransaction();
@@ -55,21 +86,38 @@ class AuthController extends Controller
     }
 
     public function login(Request $request){
+
+        $requiredFields = ['email', 'password'];
+        $missingFields = array_diff($requiredFields, array_keys($request->all()));
+
+        if (!empty($missingFields)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. Missing required fields: ' . implode(', ', $missingFields),
+            ], 400); // 400 Bad Request
+        }
+
         $validator = Validator::make($request->all(),[
             'email' => 'required|email',
             'password' => 'required|string',
         ]);
 
-        if($validator->fails()){
-            return response()->json(['error'=>$validator->errors()], 400);            
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unprocessable Entity. Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422); // 422
         }
+        
         try {
             $user = User::where('email', $request->email)->first();
                 
                 if (!$user) {
                     return response()->json([
                         'status' => 'error',
-                        'message' => 'User not found'
+                        'message' => 'Pelanggan Tidak Ditemukan'
                     ], 404);
                 }
 
@@ -114,7 +162,7 @@ class AuthController extends Controller
         }
     }
 
-    public function getPelanggan(Request $request)
+    public function getUser(Request $request)
     {
         try {
             $user = auth()->user();
@@ -149,6 +197,13 @@ class AuthController extends Controller
         try {
             // Dapatkan pelanggan yang sedang login
             $pelanggan = Auth::user()->pelanggan;
+
+            if (empty($request->all())) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Bad Request. No data provided.',
+                ], 400); // 400 Bad Request
+            }
 
             // Validasi input
             $validator = Validator::make($request->all(), [
@@ -234,7 +289,12 @@ class AuthController extends Controller
     {
         try {
             JWTAuth::invalidate(JWTAuth::getToken());
+            $previousUrl = session('previous_url');
+            session()->flush(); // Hapus sesi Laravel
+            session(['previous_url' => $previousUrl]); // Simpan ulang previous_url
+
             return response()->json(['message' => 'Successfully logged out']);
+            
         } catch (JWTException $e) {
             return response()->json(['error' => 'Failed to logout'], 500);
         }

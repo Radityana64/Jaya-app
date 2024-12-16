@@ -64,6 +64,9 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+    function getJwtToken() {
+            return $('meta[name="api-token"]').attr('content');
+        }
 document.addEventListener('DOMContentLoaded', function() {
     // Event listener untuk form submit
     document.getElementById('banner-form').addEventListener('submit', function(e) {
@@ -100,6 +103,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('gambar-error').textContent = '';
         document.getElementById('status-error').textContent = '';
 
+        const jwtToken = getJwtToken();
+
         // Get form data
         const formData = new FormData();
         const judul = document.getElementById('judul').value.trim();
@@ -133,7 +138,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Kirim data ke backend
         fetch('/api/banner/create', {
             method: 'POST',
-            body: formData
+            body: formData,
+            headers: {
+            'Authorization': `Bearer ${jwtToken}`  // Menambahkan Bearer token
+        }
         })
         .then(response => response.json())
         .then(data => {
