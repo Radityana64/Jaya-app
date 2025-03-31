@@ -81,7 +81,7 @@
                             <label>Kriteria Distribusi</label>
                             <select id="kriteria-distribusi" class="form-control">
                                 <option value="semua_pelanggan">Semua Pelanggan</option>
-                                <option value="pelanggan_aktif">Pelanggan Aktif</option>
+                                <!-- <option value="pelanggan_aktif">Pelanggan Aktif</option> -->
                                 <option value="pelanggan_loyal">Pelanggan Loyal</option>
                             </select>
                         </div>
@@ -98,12 +98,7 @@
 </div>
 @endsection
 
-@push('styles')
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-@endpush
-
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -122,6 +117,10 @@ document.addEventListener('DOMContentLoaded', function() {
         getJwtToken() {
             const tokenMeta = document.querySelector('meta[name="api-token"]');
             return tokenMeta ? tokenMeta.getAttribute('content') : '';
+        }
+
+        getApiBaseUrl(){
+            return document.querySelector('meta[name="api-base-url"]').getAttribute('content');
         }
 
         initEventListeners() {
@@ -182,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const formData = new FormData(form);
 
             // Kirim data ke backend
-            fetch('/api/vouchers', {
+            fetch(`${this.getApiBaseUrl()}/api/vouchers`, {
                 method: 'POST',
                 body: formData,
                 headers: {
@@ -210,7 +209,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         distribusiVoucher(voucherId, kriteria) {
-            fetch('/api/vouchers/distribusi', {
+            fetch(`${this.getApiBaseUrl()}/api/vouchers/distribusi`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

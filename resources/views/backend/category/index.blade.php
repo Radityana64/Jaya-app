@@ -9,9 +9,9 @@
          </div>
      </div>
     <div class="card-header py-3">
-      <h6 class="m-0 font-weight-bold text-primary float-left">Category Lists</h6>
-      <a href="{{route('category.create')}}" class="btn btn-primary btn-sm float-right" data-toggle="tooltip" data-placement="bottom" title="Add User"><i class="fas fa-plus"></i> Add Category</a>
-      <button class="btn btn-secondary btn-sm float-right mr-2" id="kategori1-btn">Kategori 1</button>
+      <h6 class="m-0 font-weight-bold text-primary float-left">List Kategori</h6>
+      <a href="{{route('category.create')}}" class="btn btn-primary btn-sm float-right" data-toggle="tooltip" data-placement="bottom" title="Add User"><i class="fas fa-plus"></i> Tambah Kategori</a>
+      <button class="btn btn-secondary btn-sm float-right mr-2" id="kategori1-btn">Kategori Utama</button>
     </div>
     <div class="card-body">
       <div class="table-responsive">
@@ -23,7 +23,7 @@
                       <th>Kategori</th>
                       <th>ID Sub Kategori</th>
                       <th>Sub Kategori</th>
-                      <th>Action</th>
+                      <th>Aksi</th>
                   </tr>
               </thead>
               <tbody id="category-table-body">
@@ -35,9 +35,9 @@
 </div>
 
 <div class="card shadow mb-4" id="kategori1-table" style="display:none;">
-    <div class="card-header py-3">
-        <h6 class="m-0 font-weight-bold text-primary">Kategori 1 List</h6>
-        <button class="btn btn-secondary btn-sm float-right mr-2" id="all-btn">All</button>
+    <div class="card-header py-3 d-flex align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Kategori Utama</h6>
+        <button class="btn btn-secondary btn-sm" id="all-btn">Semua</button>
     </div>
     <div class="card-body">
         <div class="table-responsive">
@@ -48,7 +48,7 @@
                         <th>ID Kategori</th>
                         <th>Kategori</th>
                         <th>Gambar</th>
-                        <th>Action</th>
+                        <th>Aksi</th>
                     </tr>
                 </thead>
                 <tbody id="kategori1-table-body">
@@ -63,7 +63,6 @@
 
 @push('styles')
   <link href="{{asset('backend/vendor/datatables/dataTables.bootstrap4.min.css')}}" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.css" />
   <style>
       div.dataTables_wrapper div.dataTables_paginate{
           display: none;
@@ -72,11 +71,9 @@
 @endpush
 
 @push('scripts')
-
   <!-- Page level plugins -->
   <script src="{{asset('backend/vendor/datatables/jquery.dataTables.min.js')}}"></script>
   <script src="{{asset('backend/vendor/datatables/dataTables.bootstrap4.min.js')}}"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/2.1.2/sweetalert.min.js"></script>
 
   <!-- Page level custom scripts -->
   <script src="{{asset('backend/js/demo/datatables-demo.js')}}"></script>
@@ -88,12 +85,16 @@
     function getJwtToken() {
         return document.querySelector('meta[name="api-token"]').getAttribute('content');
     }
+
+    function getApiBaseUrl(){
+        return document.querySelector('meta[name="api-base-url"]').getAttribute('content');
+    }
       let table;
       let categoriesData = []; // Store fetched categories data
 
       document.addEventListener('DOMContentLoaded', function() {
         // Fetch data from the API
-        fetch('http://127.0.0.1:8000/api/kategori')
+        fetch(`${getApiBaseUrl()}/api/kategori`)
             .then(response => response.json())
             .then(data => {
                 categoriesData = data.data; // Store the data for later use
@@ -101,33 +102,51 @@
             })
             .catch(error => console.error('Error fetching data:', error));
 
-        function populateTable(categories) {
-            const tableBody = document.getElementById('category-table-body');
-            let rows = '';
+            function populateTable(categories) {
+                const tableBody = document.getElementById('category-table-body');
+                let rows = '';
 
-            // Use a counter for sequential numbering
-            let counter = 1;
+                // Use a counter for sequential numbering
+                let counter = 1;
 
-            categories.forEach((category) => {
+                categories.forEach((category) => {
                 const idKategori1 = category.id_kategori;
                 const namaKategori1 = category.nama_kategori;
-                category.sub_kategori.forEach((sub_kategori) => {
-                    const idKategori2 = sub_kategori.id_kategori;
-                    const namaKategori2 = sub_kategori.nama_kategori;
+
+                // Jika kategori tidak memiliki subkategori, tambahkan satu baris dengan tanda "-"
+                if (!category.sub_kategori || category.sub_kategori.length === 0) {
                     rows += `
                         <tr>
                             <td>${counter++}</td> <!-- Sequential numbering -->
                             <td>${idKategori1}</td>
                             <td>${namaKategori1}</td>
-                            <td>${idKategori2}</td>
-                            <td>${namaKategori2}</td>
+                            <td>-</td>
+                            <td>-</td>
                             <td>
                                 <a href="{{url('kategori/edit/${idKategori1}')}}" class="btn btn-primary btn-sm">Edit</a>
-                                <button type="button" class="btn btn-danger btn-sm nonaktifBtn" data-id="${idKategori2}">Nonaktif</button>
+                                <button type="button" class="btn btn-danger btn-sm nonaktifBtn" data-id="${idKategori1}">Nonaktif</button>
                             </td>
                         </tr>
                     `;
-                });
+                } else {
+                    category.sub_kategori.forEach((sub_kategori) => {
+                        const idKategori2 = sub_kategori.id_kategori;
+                        const namaKategori2 = sub_kategori.nama_kategori;
+                        rows += `
+                            <tr>
+                                <td>${counter++}</td> <!-- Sequential numbering -->
+                                <td>${idKategori1}</td>
+                                <td>${namaKategori1}</td>
+                                <td>${idKategori2}</td>
+                                <td>${namaKategori2}</td>
+                                <td>
+                                    <a href="{{url('kategori/edit/${idKategori1}')}}" class="btn btn-primary btn-sm">Edit</a>
+                                    <button type="button" class="btn btn-danger btn-sm nonaktifBtn" data-id="${idKategori2}">Nonaktif</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
             });
 
             tableBody.innerHTML = rows;
@@ -154,17 +173,19 @@
         function attachNonaktifEvent() {
             $('.nonaktifBtn').on('click', function() {
                 const id = $(this).data('id');
-                swal({
-                    title: "Are you sure?",
-                    text: "Once nonaktif, you will not be able to recover this category!",
+                
+                Swal.fire({
+                    title: "Apakah Anda yakin?",
+                    text: "Setelah dinonaktifkan, kategori ini tidak dapat dikembalikan!",
                     icon: "warning",
-                    buttons: true,
-                    dangerMode: true,
-                })
-                .then((willNonaktif) => {
-                    if (willNonaktif) {
-                        // Perform nonaktif action
-                        fetch(`http://127.0.0.1:8000/api/kategori/status/${id}`, {
+                    showCancelButton: true,
+                    confirmButtonColor: "#d33",
+                    cancelButtonColor: "#3085d6",
+                    confirmButtonText: "Ya, nonaktifkan!",
+                    cancelButtonText: "Batal"
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        fetch(`${getApiBaseUrl()}/api/kategori/status/${id}`, {
                             method: 'PUT',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -175,25 +196,29 @@
                         })
                         .then(response => {
                             if (response.ok) {
-                                swal("Success! The category has been deactivated.", {
-                                    icon: "success",
-                                    buttons: false,
-                                    
+                                Swal.fire({
+                                    title: "Sukses!",
+                                    text: "Kategori berhasil dinonaktifkan.",
+                                    icon: "success"
+                                }).then(() => {
+                                    location.reload(); // Reload halaman setelah sukses
                                 });
-                                location.reload();
-                                // Refresh the table
                             } else {
-                                swal("Error deactivating the category!");
+                                Swal.fire("Gagal!", "Terjadi kesalahan saat menonaktifkan kategori.", "error");
                             }
                         })
-                        .catch(error => console.error('Error deactivating data:', error));
+                        .catch(error => {
+                            console.error('Error deactivating data:', error);
+                            Swal.fire("Error!", "Terjadi kesalahan pada server.", "error");
+                        });
                     }
                 });
             });
         }
 
+
         $('#kategori1-btn').on('click', function() {
-            const kategori1Data = categoriesData.filter(category => category.sub_kategori && category.sub_kategori.length > 0);
+            const kategori1Data = categoriesData.filter(category => category.sub_kategori && category.sub_kategori.length > 0 || !category.sub_kategori || category.sub_kategori.length === 0);
             populateKategori1Table(kategori1Data);
             $('#all-categories').hide(); // Hide the main category table
             $('#kategori1-table').show(); // Show Kategori 1 table

@@ -5,98 +5,141 @@
 @section('main-content')
 <!-- Breadcrumbs -->
 <div class="breadcrumbs">
-			<div class="container">
-				<div class="row">
-					<div class="col-12">
-						<div class="bread-inner">
-							<ul class="bread-list">
-								<li><a href="#">Home<i class="ti-arrow-right"></i></a></li>
-								<li class="active"><a href="">Shop Details</a></li>
-							</ul>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-		<!-- End Breadcrumbs -->
-
-<!-- Product Detail Container -->
-<div class="container mt-3">
-    <div class="row" id="productDetailContainer">
-        <!-- Image Gallery -->
-        <div class="col-md-6 col-12">
-            <div class="product-gallery">
-                <div class="main-image mb-3">
-                    <img id="mainProductImage" src="" alt="Product Image" class="img-fluid rounded">
-                </div>
-                <div class="thumbnail-images d-flex" id="thumbnailContainer">
-                    <!-- Thumbnails will be populated here -->
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <div class="bread-inner">
+                    <ul class="bread-list">
+                        <li><a href="{{route('index')}}">Beranda<i class="ti-arrow-right"></i></a></li>
+                        <li class="active"><a href="">Detail Produk</a></li>
+                    </ul>
                 </div>
             </div>
         </div>
+    </div>
+</div>
+<!-- End Breadcrumbs -->
 
-        <!-- Product Info -->
-        <div class="col-md-6">
-            <div class="product-info">
-                <h2 id="productName" class="mb-3"></h2>
-                <div class="ratings mb-3">
-                    <span id="averageRating" class="text-warning"></span>
-                    <span id="totalReviews" class="text-muted"></span>
-                </div>
-				<!-- Description -->
-                <div class="description">
-                    <h4>Description</h4>
-                    <p id="productDescription"></p>
-                </div>
-
-                <div class="price mb-3">
-                    <h3 id="productPrice"></h3>
-                </div>
-
-                <!-- Variations -->
-                <div id="variationsContainer" class="mb-4">
-                    <!-- Variations will be populated here -->
-                </div>
-
-                <!-- Quantity -->
-                <div class="quantity mb-4">
-                    <label class="form-label">Quantity:</label>
-                    <div class="input-group" style="width: 100px">
-                        
-                    <button id="decreaseQty">-</button><input type="number" id="quantity" value="1" min="1" disabled class="form-control"><button id="increaseQty">+</button>
-                       
-
+<!-- Product Detail Container -->
+<div class="container mt-3">
+    <div class="product-detail-card card" style="border-radius: 5px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
+        <div class="card-body p-4">
+            <div class="row" id="productDetailContainer">
+                <!-- Image Gallery -->
+                <div class="col-md-5 col-12">
+                    <div class="product-gallery">
+                        <div class="main-image mb-3">
+                            <img id="mainProductImage" src="" alt="Product Image" 
+                                 class="img-fluid rounded" 
+                                 style="max-height: 500px; width: 100%; object-fit: cover;">
+                        </div>
+                        <div class="thumbnail-images d-flex" id="thumbnailContainer" style=overflow: hidden;>
+                            <!-- Thumbnails will be populated here -->
+                        </div>
                     </div>
-                    <small id="stockInfo" class="text-muted"></small>
                 </div>
 
-                <!-- Add to Cart Button -->
-                <button id="addToCartBtn" class="btn btn-primary btn-lg mb-4" disabled>
-                    Add to Cart
-                </button>
+                <!-- Product Info -->
+                <div class="col-md-5" style="margin-left:20px">
+                    <div class="product-info">
+                        <h2 id="productName" class="mb-3"></h2>
+                        <div class="ratings mb-3">
+                            <span id="averageRating" class="text-warning"></span>
+                            <span id="totalReviews" class="text-muted"></span>
+                        </div>
+                        <!-- Description -->
+                        <div class="description mb-4">
+                            <h4 class="mb-2">Deskripsi</h4>
+                            <p id="productDescription"></p>
+                        </div>
+
+                        <div class="price mb-4">
+                            <h3 id="productPrice" style="color:black"></h3>
+                        </div>
+
+                        <!-- Variations -->
+                        <div id="variationsContainer" class="mb-4">
+                            <!-- Variations will be populated here -->
+                        </div>
+
+                        <!-- Quantity -->
+                        <div class="quantity mb-4">
+                            <label class="form-label">Jumlah:</label>
+                            <div class="input-group">
+                                <button id="decreaseQty">-</button><input type="number" id="quantity" value="1" min="1" disabled class="form-control"><button id="increaseQty">+</button>
+                            </div>
+                            <small id="stockInfo" class="text-muted"></small>
+                        </div>
+
+                        <!-- Add to Cart Button -->
+                        <button id="addToCartBtn" class="btn btn-primary btn-lg mb-4" disabled>
+                            Tambah Ke Keranjang
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Video Section -->
-    <div class="product-video mt-5" id="videoContainer">
-        <!-- Video iframe will be added here if available -->
-    </div>
-
-    <div class="row mt-5">
-        <div class="col-12">
-            <h3>Produk Detail</h3>
-            <div id="detailproduk">
-                
+    
+    <div class="card-video card mt-3 hidden" id="videoCard" style="border-radius: 5px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
+        <div class="card-body p-4">
+            <div class="product-video" id="videoContainer">
+                <!-- Video iframe will be added here if available -->
             </div>
         </div>
     </div>
 
-    <div class="row mt-5">
-        <div class="col-12">
-            <h3>Customer Reviews</h3>
-            <div id="reviewsContainer">
-                <!-- Reviews will be populated here -->
+    <div class="card-detail-produk card mt-3" style="border-radius: 5px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
+        <div class="card-body p-4">
+            <div class="col-12">
+                <h3 class="mb-3">Detail Produk</h3>
+                <div id="detailproduk">
+                        
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-penilaian card mt-3 mb-3" style="border-radius: 5px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
+        <div class="card-body p-4">
+            <div class="col-12">
+                <div class="card-summary card mt-3" style="border-radius: 5px;">
+                    <div class="card-body p-2">
+                        <h3 class="mb-3">Penilaian</h3>
+                        
+                        <!-- Summary Review and Filter -->
+                        <div class="d-flex align-items-center justify-content-between mb-4">
+                            <!-- Summary Section -->
+                            <div class="review-summary">
+                                <div class="d-flex align-items-center text-warning">
+                                    <h4 class="me-3" id="averageRatings">0.0</h4>
+                                    <div class="stars" id="starSummary"></div>
+                                </div>
+                                <p class="text-muted mb-0" id="totalsReviews">0 reviews</p>
+                            </div>
+
+                            <!-- Filter Section -->
+                            <div class="filter-rating">
+                                <label for="filterRating" class="form-label mb-1">Filter Bintang:</label>
+                                <select id="filterRating" class="form-select" style="width: 150px;">
+                                    <option value="">Seluruhnya</option>
+                                    <option value="5">5 Bintang</option>
+                                    <option value="4">4 Bintang</option>
+                                    <option value="3">3 Bintang</option>
+                                    <option value="2">2 Bintang</option>
+                                    <option value="1">1 Bintang</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reviews List -->
+                <div id="reviewsContainer">
+                    <!-- Reviews will be populated here -->
+                </div>
             </div>
         </div>
     </div>
@@ -105,6 +148,34 @@
 
 @push('styles')
 <style>
+        .input-group {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width : 150px;
+    }
+
+    .input-group button {
+        background-color: black;
+        color: white;
+        border: 1px solid black;
+        padding: 5px 10px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: 0.3s;
+    }
+
+    .input-group button:hover {
+        background-color: #333; /* Warna hitam lebih terang saat hover */
+    }
+
+    .input-group input {
+        text-align: center;
+        width: 50px;
+        border: 1px solid black;
+        margin: 0 5px;
+    }
+
     .variation-option {
 		margin: 5px;
 		padding: 5px 10px;
@@ -114,9 +185,9 @@
 	}
 
 	.variation-option.selected {
-		background-color: #007bff;
+		background-color: #000000;
 		color: white;
-		border-color: #007bff;
+		border-color: #000000;
 	}
 
 	.variation-option.disabled {
@@ -125,17 +196,36 @@
 		cursor: not-allowed;
 		opacity: 0.5;
 	}
-    .thumbnail-images img {
-        width: 80px;
-        height: 80px;
-        object-fit: cover;
-        margin-right: 10px;
-        cursor: pointer;
-        border: 2px solid transparent;
+    .product-gallery {
+        overflow: hidden; /* Pastikan elemen tidak menembus keluar */
+        width: 100%; Pastikan lebar sesuai container
     }
-    .thumbnail-images img.active {
-        border-color: #007bff;
+    .thumbnail-images {
+        display: flex; /* Susun gambar thumbnail secara horizontal */
+        gap: 10px; /* Jarak antar gambar */
+        flex-wrap: wrap; /* Bungkus thumbnail jika terlalu panjang */
     }
+
+    .thumbnail-img {
+        width: 100px; /* Lebar thumbnail */
+        height: 100px; /* Tinggi thumbnail */
+        object-fit: cover; /* Agar gambar tidak terdistorsi */
+        cursor: pointer; /* Ubah kursor menjadi pointer */
+        border-radius: 5px; /* Tambahkan sedikit border radius */
+        border: 2px solid transparent; /* Default border */
+    }
+
+    #videoContainer iframe {
+        aspect-ratio: 16 / 9; /* Rasio video YouTube */
+        width: 100%;
+        height: auto; /* Akan otomatis menyesuaikan */
+        border-radius: 5px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+    .hidden {
+        display: none;
+    }
+
 </style>
 @endpush
 
@@ -154,11 +244,14 @@ function getProductIdFromUrl() {
     const pathArray = window.location.pathname.split('/');
     return pathArray[pathArray.length - 1];
 }
+function getApiBaseUrl() {
+    return document.querySelector('meta[name="api-base-url"]').getAttribute('content');
+}
 
 async function fetchProductData() {
     try {
         const productId = getProductIdFromUrl();
-        const response = await axios.get(`/api/produk/${productId}`);
+        const response = await axios.get(`${getApiBaseUrl()}/api/produk/${productId}`);
         productData = response.data.data;
         await fetchReviews();
         initializeProduct();
@@ -170,7 +263,7 @@ async function fetchProductData() {
 
 async function fetchReviews() {
     try {
-        const response = await axios.get(`/api/ulasan/get-by-produk/${productData.id_produk}`);
+        const response = await axios.get(`${getApiBaseUrl()}/api/ulasan/get-by-produk/${productData.id_produk}`);
         reviewsData = response.data.data;
         renderReviews();
     } catch (error) {
@@ -188,7 +281,36 @@ function renderProductBasics() {
         document.getElementById('averageRating').textContent = `${rating} ★`;
         document.getElementById('totalReviews').textContent = `(${reviews} reviews)`;
     }
+    const defaultVariation = productData.produk_variasi.find(variation => variation.default === "benar");
+    
+    if (defaultVariation) {
+        // Produk memiliki variasi default
+        currentVariation = defaultVariation; // Set current variation
+        enableQuantityInput(defaultVariation); // Enable quantity input
+        updateProductInfo(defaultVariation); // Update product info
+    } else {
+        // Produk tidak memiliki variasi default
+        const priceRange = getPriceRange(productData.produk_variasi);
+        document.getElementById('productPrice').textContent = `Rp ${priceRange}`;
+        enableQuantityInput(null); // Disable input until a variation is selected
+    }
 }
+
+function getPriceRange(variations) {
+    // Filter out variations that are not active
+    const activeVariations = variations.filter(variation => variation.status === 'aktif');
+    
+    const prices = activeVariations.map(variation => variation.harga);
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+
+    if (minPrice === maxPrice) {
+        return minPrice.toLocaleString(); // Jika harga sama, tampilkan satu harga
+    } else {
+        return `${minPrice.toLocaleString()} - ${maxPrice.toLocaleString()}`; // Tampilkan rentang harga
+    }
+}
+
 
 function updateVariationImages(variation) {
     const mainImage = document.getElementById('mainProductImage');
@@ -209,11 +331,11 @@ function updateVariationImages(variation) {
 }
 
 function renderVariations() {
-    if (!productData.produk_variasi || productData.produk_variasi.length === 0) {
-        // If no variations, enable quantity input directly
-        enableQuantityInput(null);
-        return;
-    }
+    // if (!productData.produk_variasi || productData.produk_variasi.length === 0) {
+    //     // If no variations, enable quantity input directly
+    //     enableQuantityInput(null);
+    //     return;
+    // }
 
     const variationsContainer = document.getElementById('variationsContainer');
     variationsContainer.innerHTML = '';
@@ -368,7 +490,7 @@ function updateProductInfo(variation) {
     const addToCartBtn = document.getElementById('addToCartBtn');
 
     if (!variation) {
-        priceElement.textContent = 'Select all variations';
+        priceElement.textContent = 'Sesuaikan Variasi';
         stockElement.textContent = '';
         addToCartBtn.disabled = true;
         return;
@@ -402,9 +524,8 @@ function enableQuantityInput(variation) {
     if (variation) {
         input.max = variation.stok;
         input.value = 1; // Set default value to 1
-    } else if (productData.stok) {
-        input.max = productData.stok;
-        input.value = 1; // Set default value to 1
+    } else {
+        input.value = 0; // Reset value if no variation
     }
     
     updateAddToCartButton();
@@ -450,11 +571,17 @@ async function addToCart() {
     const quantity = parseInt(document.getElementById('quantity').value);
 
     if (!jwtToken) {
-        alert('Anda harus login untuk menambahkan produk ke keranjang.');
-        window.location.href = '/login';
+        Swal.fire({
+            title: "Peringatan!",
+            text: "Anda harus login untuk menambahkan produk ke keranjang.",
+            icon: "warning",
+            timer: 1000,
+            showConfirmButton: false
+        }).then(() => {
+            window.location.href = '/login';
+        });
         return;
     }
-
     const cartData = {
         id_produk_variasi: currentVariation ? currentVariation.id_produk_variasi : null,
         id_produk: productData.id_produk,
@@ -462,7 +589,7 @@ async function addToCart() {
     };
 
     try {
-        const response = await fetch('http://127.0.0.1:8000/api/keranjang/tambah', {
+        const response = await fetch(`${getApiBaseUrl()}/api/keranjang/tambah`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -473,17 +600,40 @@ async function addToCart() {
             body: JSON.stringify(cartData)
         });
 
+        const result = await response.json(); // Parse respons JSON
+
         if (!response.ok) {
-            throw new Error('Gagal menambahkan ke keranjang.');
+            // Jika respons tidak OK, tangkap pesan error dari API
+            let errorMessage = 'Gagal menambahkan ke keranjang.';
+            if (result.errors) {
+                // Gabungkan semua pesan error menjadi satu string
+                errorMessage = Object.values(result.errors).flat().join(' ');
+            } else if (result.message) {
+                errorMessage = result.message;
+            }
+            throw new Error(errorMessage); // Lempar error dengan pesan dari API
         }
 
-        const result = await response.json();
-        alert('Produk berhasil ditambahkan ke keranjang!');
-        window.location.href = '/keranjang';
+        // Jika berhasil, tampilkan Swal sukses
+        Swal.fire({
+            title: "Berhasil!",
+            text: "Produk berhasil ditambahkan ke keranjang!",
+            icon: "success",
+            timer: 1000,
+            showConfirmButton: false
+        }).then(() => {
+            window.location.href = '/keranjang'; 
+        });
 
     } catch (error) {
         console.error('Error adding to cart:', error);
-        alert('Terjadi kesalahan saat menambahkan produk ke keranjang.');
+        // Tampilkan pesan error di Swal
+        Swal.fire({
+            title: "Gagal!",
+            text: error.message || "Terjadi kesalahan saat menambahkan produk ke keranjang.",
+            icon: "error",
+            confirmButtonText: "OK"
+        });
     }
 }
 
@@ -521,20 +671,31 @@ function renderImages() {
 
 // Setup video jika tersedia
 function videoProduk() {
+    const videoCard = document.getElementById('videoCard');
     const videoContainer = document.getElementById('videoContainer');
+    
     if (productData.detail_produk?.url_video) {
         const videoId = getYouTubeVideoId(productData.detail_produk.url_video);
-        videoContainer.innerHTML = `
-            <h4 class="mb-3">Product Video</h4>
-            <div class="ratio ratio-16x9">
-                <iframe src="https://www.youtube.com/embed/${videoId}" 
-                        title="Product Video"
-                        allowfullscreen>
-                </iframe>
-            </div>
-        `;
+        if (videoId) {
+            videoCard.classList.remove('hidden');
+            videoContainer.innerHTML = `
+                <h4 class="mb-3">Video Produk</h4>
+                <iframe 
+                    src="https://www.youtube.com/embed/${videoId}?autoplay=0&modestbranding=1&rel=0" 
+                    title="Video Produk"
+                    allowfullscreen
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    style="width: 100%; height: 500px; border: none; border-radius: 5px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);"
+                ></iframe>
+            `;
+        } else {
+            videoCard.classList.add('hidden');
+        }
+    } else {
+        videoCard.classList.add('hidden');
     }
 }
+
 // Function to change the main image when a thumbnail is clicked
 function changeMainImage(imageSrc, thumbnail) {
     const mainImage = document.getElementById('mainProductImage');
@@ -553,21 +714,39 @@ function getYouTubeVideoId(url) {
 
 
 // Render reviews
-function renderReviews() {
+function renderReviews(filterRating = '') {
     const container = document.getElementById('reviewsContainer');
-    if (!reviewsData || !reviewsData.reviews.length) {
-        container.innerHTML = '<p>No reviews yet</p>';
+    
+    // Cek apakah reviewsData ada
+    if (!reviewsData || !reviewsData.ringkasan_ulasan) {
+        container.innerHTML = '<p>No reviews available</p>';
         return;
     }
 
-    container.innerHTML = reviewsData.reviews.map(review => `
+    const reviews = reviewsData.ringkasan_ulasan;
+
+    // Filter reviews based on selected rating
+    const filteredReviews = filterRating
+        ? reviews.filter(review => review.rating === parseInt(filterRating))
+        : reviews;
+
+    // Handle empty reviews
+    if (!filteredReviews.length) {
+        container.innerHTML = '<p>No reviews available for this rating</p>';
+        return;
+    }
+
+    // Render reviews
+    container.innerHTML = filteredReviews.map(review => `
         <div class="review-item border-bottom py-3">
             <div class="d-flex justify-content-between">
-                <h5>${review.nama_pelanggan}</h5>
-                <small class="text-muted">${review.tanggal_dibuat}</small>
-            </div>
-            <div class="rating">
-                ${'★'.repeat(review.rating)}${'☆'.repeat(5-review.rating)}
+                <div>
+                    <h5>${review.nama_pelanggan}</h5>
+                    <div class="rating text-warning">
+                        ${generateStarRating(review.rating)}
+                    </div>
+                </div>
+                <small class="text-muted">${formatDate(review.tanggal_dibuat)}</small>
             </div>
             <p class="mb-1">${review.ulasan}</p>
             <small class="text-muted">Variation: ${review.variasi}</small>
@@ -579,6 +758,66 @@ function renderReviews() {
             ` : ''}
         </div>
     `).join('');
+}
+
+function updateReviewSummary() {
+    // Tambahkan pengecekan yang lebih detail
+    if (!reviewsData || !reviewsData.rating_summary) {
+        console.warn('Review summary data is missing');
+        return;
+    }
+
+    const summary = reviewsData.rating_summary;
+    const averageRating = summary.average_rating ? summary.average_rating.toFixed(1) : '0.0';
+    const totalsReviews = summary.total_reviews || 0;
+
+    // Debug logging
+    console.log('Average Rating:', averageRating);
+    console.log('Total Reviews:', totalReviews);
+
+    document.getElementById('averageRatings').innerText = averageRating;
+    document.getElementById('totalsReviews').innerText = `${totalsReviews} reviews`;
+    
+    document.getElementById('starSummary').innerHTML = generateStarRating(averageRating);
+}
+
+function generateStarRating(rating) {
+    const fullStars = Math.floor(rating);
+    const halfStar = rating % 1 >= 0.5 ? 1 : 0;
+    const emptyStars = 5 - fullStars - halfStar;
+    
+    let starHTML = '';
+    
+    // Bintang penuh
+    for (let i = 0; i < fullStars; i++) {
+        starHTML += '★';
+    }
+    
+    // Bintang kosong
+    for (let i = 0; i < emptyStars; i++) {
+        starHTML += '☆';
+    }
+    
+    return starHTML;
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+    });
+}
+
+function setupReviewEventListeners() {
+    const filterRatingSelect = document.getElementById('filterRating');
+    
+    if (filterRatingSelect) {
+        filterRatingSelect.addEventListener('change', function () {
+            renderReviews(this.value);
+        });
+    }
 }
 
 function setupEventListeners() {
@@ -656,12 +895,18 @@ function initializeProduct() {
     videoProduk();
     ProductDetails();
     setupEventListeners();
+    
+    if (reviewsData) {
+        updateReviewSummary();
+        renderReviews();
+        setupReviewEventListeners();
+    }
+
 }
-// Initialize the page
-// Initialize page
+
 document.addEventListener('DOMContentLoaded', () => {
     fetchProductData();
-    setupEventListeners();
+    // setupEventListeners();
 });
 
 </script>

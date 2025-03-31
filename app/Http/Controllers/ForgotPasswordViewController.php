@@ -13,9 +13,12 @@ use Illuminate\Support\Facades\Log;
 class ForgotPasswordViewController extends Controller
 {
     protected $apiBaseUrl;
+    // protected $appBaseUrl;
 
     public function __construct() {
-        $this->apiBaseUrl = env('API_BASE_URL', 'http://127.0.0.1:8000');
+        $this->apiBaseUrl = config('services.api_base_url');
+        // $this->appBaseUrl = config('services.app_base_url');
+        // $this->apiBaseUrl = env('API_BASE_URL');
     }
 
     public function formEmail(){
@@ -77,6 +80,9 @@ class ForgotPasswordViewController extends Controller
             if ($response->successful()) {
                 return redirect()->route('login')->with('status', 'Password berhasil direset! Silakan login dengan password baru Anda.');
             } else {
+                if (isset($responseData['status']) && $responseData['status'] === 'error' && isset($responseData['errors'])) {
+                    return redirect()->back()->withErrors($responseData['errors'])->withInput();
+                }
                 $errorMessage = $responseData['message'] ?? 'Terjadi kesalahan saat mereset password.';
                 return redirect()->back()->withErrors(['api' => $errorMessage])->withInput();
             }

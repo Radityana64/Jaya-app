@@ -9,9 +9,10 @@
 <body>
     <div class="container">
         <div class="left-side">
-            <div class="logo">Jaya Studio</div>
+            <div class="logo">
+                <a href="/"><img src="{{ asset('frontend/img/jaya logo.png') }}" alt="Jaya Studio Logo"></a>
+            </div>
             <div class="image-container">
-                <!-- <img src="{{ asset('auth/images/handpan.png') }}" alt="Handpan" class="featured-image"> -->
                 <img src="{{ asset('auth/images/Handpan.png') }}" alt="Handpan" class="featured-image">
             </div>
         </div>

@@ -1,5 +1,7 @@
 <header class="header shop">
 <meta name="csrf-token" content="{{ csrf_token() }}">
+<meta name="api-base-url" content="{{ config('services.api_base_url') }}">  
+<meta name="api-token" content="{{ session('auth.token') }}">
 <!-- CSS SweetAlert2 -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 
@@ -45,16 +47,27 @@
                 <div class="col-lg-2 col-md-2 col-12">
                     <!-- Logo -->
                     <div class="logo">
-                        <img src="/frontend/img/jaya%20logo.jpg" alt="logo">
+                        <a href="/"><img src="/frontend/img/jaya%20logo.png" alt="logo"></a>
                     </div>
                     <!--/ End Logo -->
+                    <div class="search-top">
+                        <div class="top-search"><a href="#"><i class="ti-search"></i></a></div>
+                        <!-- Search Form -->
+                        <div class="search-top">
+                            <form class="search-form">
+                                <input type="text" placeholder="Cari Produk..." name="search">
+                                <button value="search" type="submit"><i class="ti-search"></i></button>
+                            </form>
+                        </div>
+                        <!--/ End Search Form -->
+                    </div>
                     <div class="mobile-nav"></div>
                 </div>
                 <div class="col-lg-8 col-md-7 col-12">
                     <div class="search-bar-top">
                         <div class="search-bar">
                         <form id="searchForm">
-                            <input name="search" id="searchInput" placeholder="Search Products Here....." type="search">
+                            <input name="search" id="searchInput" placeholder="Cari Produk....." type="search">
                             <button class="btnn" type="submit"><i class="ti-search"></i></button>
                         </form>
                         </div>
@@ -68,18 +81,14 @@
                             <!-- Shopping Item -->
                             <div class="shopping-item">
                                 <div class="dropdown-cart-header">
-                                    <span id="cartItemCount">0 Items</span>
-                                    <a href="{{route('keranjang')}}">View Cart</a>
+                                    <span id="cartItemCount">0 Item</span>
+                                    <span>di keranjang</span>
                                 </div>
                                 <ul class="shopping-list" id="cartList">
                                     <li>Loading cart items...</li>
                                 </ul>
                                 <div class="bottom">
-                                    <div class="total">
-                                        <span>Total</span>
-                                        <span class="total-amount" id="cartTotal">$0.00</span>
-                                    </div>
-                                    <a href="/checkout" class="btn animate">Checkout</a>
+                                    <a href="{{route('keranjang')}}" class="btn animate">Lihat Keranjang</a>
                                 </div>
                             </div>
                             <!--/ End Shopping Item -->
@@ -101,10 +110,9 @@
                                 <div class="navbar-collapse">	
                                     <div class="nav-inner">	
                                         <ul class="nav main-menu menu navbar-nav">
-                                            <li class=""><a href="/">Home</a></li>
-                                            <li class=""><a href="#">About Us</a></li>
-                                            <li class="active"><a href="/etalase/produk">Products</a><span class="new">New</span></li>												
-                                            <li class=""><a href="#">Blog</a></li>	
+                                            <li class="{{Request::path()=='/' ? 'active' : ''}}"><a href="/">Beranda</a></li>
+                                            <li class="{{Request::path()=='about-us' ? 'active' : ''}}"><a href="/about-us">Tentang Jaya</a></li>
+                                            <li class="{{Request::path()=='etalase/produk' ? 'active' : ''}}"><a href="/etalase/produk">Etalase Produk</a></li>
                                         </ul>
                                     </div>
                                 </div>
@@ -118,7 +126,7 @@
     </div>
     <!--/ End Header Inner -->
 </header>
-<meta name="api-token" content="{{ session('auth.token') }}">
+
 <script>
     let cartData = null;
     let userProfile = null;
@@ -130,17 +138,27 @@
     function getJwtToken() {
         return document.querySelector('meta[name="api-token"]').getAttribute('content');
     }
-    document.getElementById('searchForm').addEventListener('submit', function(event) {
+
+    function getApiBaseUrl() {
+        return document.querySelector('meta[name="api-base-url"]').getAttribute('content');
+    }
+
+    function handleSearch(event) {
         event.preventDefault(); // Mencegah pengiriman form default
-        const searchTerm = document.getElementById('searchInput').value.trim();
+        const searchInput = event.target.querySelector('input[name="search"]'); // Ambil input
+        const searchTerm = searchInput ? searchInput.value.trim() : ''; // Ambil nilai input
         if (searchTerm) {
             window.location.href = `/etalase/produk/?search=${encodeURIComponent(searchTerm)}`;
         }
-    });
+    }
+    document.querySelector('.search-form').addEventListener('submit', handleSearch);
+    document.getElementById('searchForm').addEventListener('submit', handleSearch);
 
     async function checkAuthStatus() {
         const jwtToken = getJwtToken();
+        const metaToken = document.querySelector('meta[name="api-token"]');
         const authSection = document.getElementById('authSection');
+        const apiBaseUrl = getApiBaseUrl();
 
         if (!jwtToken) {
             // User is not logged in
@@ -151,7 +169,7 @@
         }
 
         try {
-            const response = await fetch('http://127.0.0.1:8000/api/user/profil', {
+            const response = await fetch(`${apiBaseUrl}/api/user/profil`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -161,8 +179,19 @@
                 }
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch user profile');
+            if (response.status === 403) {
+                metaToken.setAttribute('content', '');
+                Swal.fire({
+                    title: "Akses Ditolak!",
+                    text: "Akun Anda telah dinonaktifkan oleh admin.",
+                    icon: "warning",
+                    timer: 3000, // Redirect setelah 3 detik
+                    showConfirmButton: false
+                }).then(() => {
+                    window.location.href = "/login";
+                });
+
+                return;
             }
 
             // Simpan data profil ke variabel global
@@ -175,9 +204,9 @@
             // Update tampilan UI berdasarkan profil pengguna
             authSection.innerHTML = `
                 <li>
-                    <a href="${userProfile.role === 'admin' ? '/admin' : '/data-pelanggan'}" id="userDashboard">
+                    <a href="${userProfile.role === 'admin' || userProfile.role === 'pemilik_toko' ? '/admin' : '/data-pelanggan'}" id="userDashboard">
                         <i class="ti-user"></i> 
-                        <span id="dashboardText">${userProfile.role === 'admin' ? 'Dashboard' : userProfile.pelanggan.username}</span>
+                        <span id="dashboardText">${userProfile.role === 'admin' || userProfile.role === 'pemilik_toko' ? 'Dashboard' : userProfile.pelanggan.username}</span>
                     </a>
                 </li>
                 <li><a href="/login" onclick="handleLogout(event)"><i class="ti-power-off"></i> Logout</a></li>
@@ -196,9 +225,11 @@
         event.preventDefault();
         const jwtToken = getJwtToken();
         // console.log('jwt', jwtToken);
+        const apiBaseUrl = getApiBaseUrl();
 
         try {
-            const response = await fetch('http://127.0.0.1:8000/api/logout', {
+        // Logout API
+            const apiResponse = await fetch(`${apiBaseUrl}/api/logout`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -207,30 +238,47 @@
                     'Authorization': `Bearer ${jwtToken}`
                 }
             });
-
-            const responseData = await response.json(); // Ambil data dari respons
-
-            if (!response.ok) {
-                throw new Error(responseData.message || 'Logout failed');
+            const apiData = await apiResponse.json();
+            if (!apiResponse.ok) {
+                throw new Error(apiData.message || 'API logout failed');
             }
 
+            // Logout Web
+            const webResponse = await fetch('http://127.0.0.1:8001/logout/session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': getCsrfToken()
+                }
+            });
+            const webData = await webResponse.json();
+            if (!webResponse.ok) {
+                throw new Error(webData.message || 'Web logout failed');
+            }
+
+            // Reset meta tag jika ada
             const metaApiToken = document.querySelector('meta[name="api-token"]');
             if (metaApiToken) {
-                metaApiToken.setAttribute('content', ''); // Reset meta tag
+                metaApiToken.setAttribute('content', '');
             }
 
-            // Redirect atau update UI setelah logout
-            window.location.href = '/login'; // Redirect ke halaman login setelah logout
-
+            // Redirect ke login
+            window.location.href = '/login';
         } catch (error) {
             console.error('Error during logout:', error);
-            alert('Logout failed. Please try again.');
+            Swal.fire({
+                title: "Logout Gagal!",
+                text: `Terjadi kesalahan: ${error.message || 'Silakan coba lagi.'}`,
+                icon: "error",
+                confirmButtonText: "OK"
+            });
         }
     }
 
-
     function fetchCart() {
         const jwtToken = getJwtToken();
+        const apiBaseUrl = getApiBaseUrl();
         
         if (!jwtToken) {
             console.error('Token JWT tidak valid. Silakan login kembali.');
@@ -244,7 +292,7 @@
             'Authorization': `Bearer ${jwtToken}`
         };
 
-        fetch('http://127.0.0.1:8000/api/keranjang', {
+        fetch(`${apiBaseUrl}/api/keranjang`, {
             method: 'GET',
             headers: headers
         })
@@ -300,15 +348,15 @@
 
         cartList.innerHTML = cartData.detail_pemesanan.map(item => `
             <li>
-                <div class="cart-item">
-                    <span>${item.produk_variasi.variasi}</span>
-                    <span>${item.jumlah} x Rp ${item.produk_variasi.harga}</span>
-                    <span>Rp ${item.sub_total_produk}</span>
+                <div class="cart-item" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="flex: 1; text-align: left;">${item.produk_variasi.nama_produk}</span>
+                    <span style="text-align: right; color: black; font-weight: bold;">
+                        <span>${item.jumlah}</span> x 
+                        <span>Rp ${item.produk_variasi.harga.toLocaleString('id-ID')}</span>
+                    </span>
                 </div>
             </li>
         `).join('');
-
-        cartTotal.textContent = `Rp ${cartData.total_harga}`;
     }
 
     // Initialize when document is ready

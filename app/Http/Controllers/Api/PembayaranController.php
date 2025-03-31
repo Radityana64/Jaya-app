@@ -12,6 +12,7 @@ use App\Models\Pelanggan;
 use App\Models\PenggunaanVoucher;
 use Midtrans\Snap;
 use Midtrans\Config;
+use Midtrans\Transaction;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -26,7 +27,37 @@ class PembayaranController extends Controller
         \Midtrans\Config::$isProduction = config('midtrans.is_production');
         \Midtrans\Config::$isSanitized = true;
         // \Midtrans\Config::$is3ds = true; // jika Anda ingin menggunakan 3D Secure
-    }    
+    }
+    
+    public function cancelTransaction($transactionId)
+    {
+        if (empty($transactionId)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Transaction ID is required'
+            ], 400);
+        }
+        try {
+            // Membatalkan transaksi berdasarkan transaction_id atau order_id
+            $response = Transaction::cancel($transactionId);
+
+            // Log untuk debugging
+            \Log::info('Cancel Transaction Response:', (array) $response);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Transaction canceled successfully',
+                'data' => $response
+            ]);
+        } catch (\Exception $e) {
+            // Tangani error
+            \Log::error('Cancel Transaction Error:', ['error' => $e->getMessage()]);
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
 
     public function createPayment(Request $request)
     {
@@ -97,6 +128,7 @@ class PembayaranController extends Controller
         // Validasi item-item dalam pesanan
         $items = $request->input('items');
         $detailPemesanan = $pemesanan->detailPemesanan;
+        $variasiProduk = Pemesanan::with('detailPemesanan.produkVariasi')->get();
 
         foreach ($items as $item) {
             // Cari detail pemesanan yang sesuai dengan item
@@ -113,6 +145,26 @@ class PembayaranController extends Controller
                 ], 404);
             }
         }
+
+        foreach ($items as $item) {
+            $variasi = $variasiProduk->first(function ($variasi) use ($item) {
+                return $variasi->detailPemesanan->contains('id_produk_variasi', $item['id']);
+            });
+        
+            if ($variasi) {
+                $stokTersedia = $variasi->detailPemesanan->where('id_produk_variasi', $item['id'])->first()->produkVariasi->stok;
+                
+                if ($item['quantity'] > $stokTersedia) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Jumlah yang dipesan melebihi stok tersedia',
+                        'invalid_item_id' => $item['id'],
+                        'stok_tersedia' => $stokTersedia
+                    ], 400);
+                }
+            }
+        }
+        
 
         // Ambil data dari permintaan
         $orderId = $request->input('order_id');
@@ -202,7 +254,6 @@ class PembayaranController extends Controller
 
             $order_id = explode('-', $notification['order_id'])[1]; // Get the actual order ID
             $transaction_status = $notification['transaction_status'];
-            $payment_type = $notification['payment_type'];
             $transaction_id = $notification['transaction_id'];
             
             // Verify signature
@@ -242,7 +293,7 @@ class PembayaranController extends Controller
                 
                 // Update payment details
                 $payment->id_transaksi_midtrans = $transaction_id;
-                $payment->metode_pembayaran = $payment_type;
+                $payment->metode_pembayaran = $this->mapPaymentMethod($notification);
                 $payment->total_pembayaran = $notification['gross_amount'];
                 $payment->status_pembayaran = $this->mapTransactionStatus($transaction_status);
                 
@@ -253,36 +304,26 @@ class PembayaranController extends Controller
                 
                 $payment->save();
                 
-                // Update order status based on transaction status
+                // Handle transaction status
                 switch ($transaction_status) {
                     case 'capture':
                     case 'settlement':
                         $this->handleSuccessPayment($order, $notification);
                         break;
-                    
                     case 'pending':
                         $this->handlePendingPayment($order, $notification);
                         break;
-                    
+                    case 'cancel':
                     case 'deny':
                     case 'expire':
-                    case 'cancel':
-                        $this->handleFailedPayment($order, $notification, $transaction_status);
+                        $this->handlePaymentCancellation($order, $notification, $payment, $transaction_status);
                         break;
                 }
-                
+
                 DB::commit();
+                Log::info('Payment processed successfully', ['order_id' => $order_id, 'status' => $transaction_status]);
                 
-                // Log successful processing
-                Log::info('Payment processed successfully', [
-                    'order_id' => $order_id,
-                    'status' => $transaction_status
-                ]);
-                
-                return response()->json([
-                    'status' => 'success', 
-                    'transaction_status' => $transaction_status
-                ]);
+                return response()->json(['status' => 'success', 'transaction_status' => $transaction_status]);
                 
             } catch (\Exception $e) {
                 DB::rollback();
@@ -290,61 +331,77 @@ class PembayaranController extends Controller
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString()
                 ]);
-                throw $e;
+                return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
             }
-            
         } catch (\Exception $e) {
             Log::error('Callback processing failed:', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            return response()->json([
-                'status' => 'error',
-                'message' => $e->getMessage()
-            ], 500);
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
 
     private function mapTransactionStatus($status)
     {
-        switch ($status) {
-            case 'capture':
-            case 'settlement':
-                return 'Berhasil';
-            case 'pending':
-                return 'Pending';
-            case 'deny':
-                return 'Ditolak';
-            case 'expire':
-                return 'Kadaluarsa';
-            case 'cancel':
-                return 'Dibatalkan';
+        $statusMap = [
+            'capture' => 'Berhasil',
+            'settlement' => 'Berhasil',
+            'pending' => 'Pending',
+            'cancel' => 'Gagal',
+            'deny' => 'Gagal',
+            'expire' => 'Expired'
+        ];
+        return $statusMap[$status] ?? 'Pending';
+    }
+
+    private function mapPaymentMethod($notification)
+    {
+        $payment_type = $notification['payment_type'];
+        $methodDetails = [];
+
+        switch ($payment_type) {
+            case 'gopay':
+                $methodDetails = ['gopay'];
+                break;
+            case 'shopeepay':
+                $methodDetails = ['shopeepay'];
+                break;
+            case 'cstore':
+                $store = $notification['store'] ?? 'unknown';
+                $methodDetails = ['cstore', $store];
+                break;
+            case 'bank_transfer':
+                $bank = $notification['va_numbers'][0]['bank'] ?? ($notification['permata_va_number'] ? 'permata' : 'unknown');
+                $methodDetails = ['bank_transfer', $bank];
+                break;
+            case 'qris':
+                $acquirer = $notification['acquirer'] ?? 'unknown';
+                $methodDetails = ['qris', $acquirer];
+                break;
+            case 'credit_card':
+                $bank = $notification['bank'] ?? 'unknown';
+                $methodDetails = ['credit_card', $bank];
+                break;
             default:
-                return 'Pending';
+                $methodDetails = [$payment_type];
+                break;
         }
+
+        return implode(', ', $methodDetails);
     }
 
     private function handleSuccessPayment($order, $notification)
     {
         Log::info('Processing successful payment', ['order_id' => $order->id_pemesanan]);
         
-        $order->status_pemesanan = 'Dibayar';
+        $order->status_pemesanan = 'Proses_Pengiriman';
         $order->save();
 
-        // Update pengiriman status
         $pengiriman = Pengiriman::where('id_pemesanan', $order->id_pemesanan)->first();
         if ($pengiriman) {
             $pengiriman->status_pengiriman = 'Dikemas';
             $pengiriman->save();
-        }
-
-        // Update product stock
-        foreach ($order->detailPemesanan as $detail) {
-            $produk = ProdukVariasi::find($detail->id_produk_variasi);
-            if ($produk) {
-                $produk->stok -= $detail->jumlah;
-                $produk->save();
-            }
         }
         
         Log::info('Success payment handled', ['order_id' => $order->id_pemesanan]);
@@ -354,49 +411,47 @@ class PembayaranController extends Controller
     {
         Log::info('Processing pending payment', ['order_id' => $order->id_pemesanan]);
         
-        $order->status_pemesanan = 'Proses_Pembayaran';
-        $order->save();
+        if ($order->status_pemesanan !== 'Proses_Pembayaran') {
+            $order->status_pemesanan = 'Proses_Pembayaran';
+            $order->save();
+
+            foreach ($order->detailPemesanan as $detail) {
+                $produk = ProdukVariasi::find($detail->id_produk_variasi);
+                if ($produk && $produk->stok >= $detail->jumlah) {
+                    $produk->stok -= $detail->jumlah;
+                    $produk->save();
+                } else {
+                    throw new \Exception("Stok tidak cukup untuk produk ID: {$detail->id_produk_variasi}");
+                }
+            }
+        }
         
         Log::info('Pending payment handled', ['order_id' => $order->id_pemesanan]);
     }
 
-    private function handleFailedPayment($order, $notification, $status)
+    private function handlePaymentCancellation($order, $notification, $payment, $transaction_status)
     {
-        Log::info('Processing failed payment', [
-            'order_id' => $order->id_pemesanan,
-            'status' => $status
-        ]);
+        Log::info('Processing payment cancellation', ['order_id' => $order->id_pemesanan]);
         
-        $order->status_pemesanan = 'Gagal';
-        $order->save();
+        $payment->status_pembayaran = $this->mapTransactionStatus($transaction_status);
+        $payment->save();
+
+        if ($order->status_pemesanan !== 'Pesanan_Dibatalkan') {
+            $order->status_pemesanan = 'Pesanan_Dibatalkan';
+            $order->save();
+
+            foreach ($order->detailPemesanan as $detail) {
+                $produk = ProdukVariasi::find($detail->id_produk_variasi);
+                if ($produk) {
+                    $produk->stok += $detail->jumlah;
+                    $produk->save();
+                }
+            }
+        }
         
-        Log::info('Failed payment handled', ['order_id' => $order->id_pemesanan]);
+        Log::info('Payment cancellation handled', ['order_id' => $order->id_pemesanan]);
     }
 
-    // public function getSnapToken($id_pemesanan)
-    // {
-    //     $pembayaran = Pembayaran::with('pemesanan')
-    //         ->where('id_pemesanan', $id_pemesanan)
-    //         ->where('status_pembayaran', 'Pending')
-    //         ->whereHas('pemesanan', function($query) {
-    //             $query->where('status_pemesanan', 'Proses_Pembayaran');
-    //         })
-    //         ->first();
-
-    //     if (!$pembayaran) {
-    //         return response()->json([
-    //             'status' => 'error',
-    //             'message' => 'Pembayaran tidak ditemukan atau status tidak valid'
-    //         ], 404);
-    //     }
-
-    //     return response()->json([
-    //         'status' => 'success',
-    //         'data' => [
-    //             'snap_token' => $pembayaran->snap_token
-    //         ]
-    //     ]);
-    // }
     public function storeSnapToken(Request $request)
     {
         $requiredFields = ['order_id', 'snap_token'];

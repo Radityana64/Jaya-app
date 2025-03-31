@@ -12,6 +12,11 @@ use Tymon\JWTAuth\Exceptions\JWTException;
 
 class ResetPasswordController extends Controller
 {
+    protected $appBaseUrl;
+
+    public function __construct() {
+        $this->appBaseUrl = config('services.app_base_url');
+    }
     public function forgotPassword(Request $request)
     {
         if (empty($request->all())) {
@@ -47,7 +52,7 @@ class ResetPasswordController extends Controller
                             ->fromUser($user);
 
             // Generate reset URL dengan JWT token
-            $resetUrl = url("/password/reset/{$token}");
+            $resetUrl = rtrim($this->appBaseUrl, '/') . "/password/reset/{$token}";
 
             // Kirim email
             Mail::send('auth.send-email', ['resetUrl' => $resetUrl], function($message) use ($user) {
@@ -108,7 +113,6 @@ class ResetPasswordController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Validasi gagal',
                 'errors' => $validator->errors()
             ], 422);
         }

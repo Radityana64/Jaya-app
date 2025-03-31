@@ -47,6 +47,9 @@ class LaporanController extends Controller
                     $request->tanggal_mulai . ' 00:00:00',
                     $request->tanggal_akhir . ' 23:59:59'
                 ])
+                ->whereHas('pemesanan', function($query) {
+                    $query->where('status_pemesanan', '!=', 'Pesanan_Dibatalkan');
+                })
                 ->where('status_pembayaran', 'berhasil')
                 ->get();
 
@@ -241,5 +244,161 @@ class LaporanController extends Controller
             });
 
         return $detail_variasi;
+    }
+
+    public function getLaporanTahunan(Request $request)
+    {
+        $requiredFields = ['tahun'];
+        $missingFields = array_diff($requiredFields, array_keys($request->all()));
+        
+        // Jika ada field yang hilang, kembalikan error 400
+        if (!empty($missingFields)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. Field wajib belum diisi: ' . implode(', ', $missingFields)
+            ], 400);
+        }
+
+        // Validasi input tahun
+        $validator = Validator::make($request->all(), [
+            'tahun' => 'required|date_format:Y'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Validasi gagal',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $tahun = $request->tahun;
+            $laporanPerBulan = [];
+
+            for ($bulan = 1; $bulan <= 12; $bulan++) {
+                $tanggalMulai = "$tahun-$bulan-01 00:00:00";
+                $tanggalAkhir = date("Y-m-t 23:59:59", strtotime($tanggalMulai));
+
+                $pembayaran = Pembayaran::whereBetween('waktu_pembayaran', [$tanggalMulai, $tanggalAkhir])
+                    ->where('status_pembayaran', 'berhasil')
+                    ->get();
+
+                if ($pembayaran->isEmpty()) {
+                    $laporanPerBulan[] = [
+                        'bulan' => date('F', strtotime($tanggalMulai)),
+                        'total_pendapatan' => 0,
+                        'jumlah_produk_terjual' => 0,
+                        'laba' => 0
+                    ];
+                    continue;
+                }
+
+                $total_penjualan = $pembayaran->sum('total_pembayaran');
+                $detail_produk = $this->getDetailProduk($pembayaran->pluck('id_pemesanan'));
+                $result = $this->prosesDataLaporan($detail_produk);
+                $total_laba = $this->hitungTotalLaba($result);
+                $jumlah_produk_terjual = $detail_produk->sum('jumlah_terjual');
+
+                $laporanPerBulan[] = [
+                    'bulan' => date('F', strtotime($tanggalMulai)),
+                    'total_pendapatan' => $total_penjualan,
+                    'jumlah_produk_terjual' => $jumlah_produk_terjual,
+                    'laba' => $total_laba
+                ];
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Data laporan tahunan berhasil diambil',
+                'data' => $laporanPerBulan
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Terjadi kesalahan saat mengambil data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getLaporanBulanan(Request $request)
+    {
+        $requiredFields = ['tahun', 'bulan'];
+        $missingFields = array_diff($requiredFields, array_keys($request->all()));
+        
+        // Jika ada field yang hilang, kembalikan error 400
+        if (!empty($missingFields)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bad Request. Field wajib belum diisi: ' . implode(', ', $missingFields)
+            ], 400);
+        }
+
+        // Validasi input tahun dan bulan
+        $validator = Validator::make($request->all(), [
+            'tahun' => 'required|date_format:Y',
+            'bulan' => 'required|date_format:m'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Validasi gagal',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $tahun = $request->tahun;
+            $bulan = $request->bulan;
+            $laporanPerHari = [];
+
+            $jumlahHari = date('t', strtotime("$tahun-$bulan-01"));
+
+            for ($hari = 1; $hari <= $jumlahHari; $hari++) {
+                $tanggalMulai = "$tahun-$bulan-$hari 00:00:00";
+                $tanggalAkhir = "$tahun-$bulan-$hari 23:59:59";
+
+                $pembayaran = Pembayaran::whereBetween('waktu_pembayaran', [$tanggalMulai, $tanggalAkhir])
+                    ->where('status_pembayaran', 'berhasil')
+                    ->get();
+
+                if ($pembayaran->isEmpty()) {
+                    $laporanPerHari[] = [
+                        'tanggal' => date('Y-m-d', strtotime($tanggalMulai)),
+                        'total_pendapatan' => 0,
+                        'jumlah_produk_terjual' => 0,
+                        'laba' => 0
+                    ];
+                    continue;
+                }
+
+                $total_penjualan = $pembayaran->sum('total_pembayaran');
+                $detail_produk = $this->getDetailProduk($pembayaran->pluck('id_pemesanan'));
+                $result = $this->prosesDataLaporan($detail_produk);
+                $total_laba = $this->hitungTotalLaba($result);
+                $jumlah_produk_terjual = $detail_produk->sum('jumlah_terjual');
+
+                $laporanPerHari[] = [
+                    'tanggal' => date('Y-m-d', strtotime($tanggalMulai)),
+                    'total_pendapatan' => $total_penjualan,
+                    'jumlah_produk_terjual' => $jumlah_produk_terjual,
+                    'laba' => $total_laba
+                ];
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Data laporan bulanan berhasil diambil',
+                'data' => $laporanPerHari
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Terjadi kesalahan saat mengambil data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

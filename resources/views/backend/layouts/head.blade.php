@@ -6,15 +6,17 @@
     <meta name="description" content="">
     <meta name="author" content="">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="api-token" content="{{ session('auth.token') }}">
+    <meta name="api-token" content="{{ session('auth.token') }}">        
+    <meta name="api-base-url" content="{{ config('services.api_base_url') }}">  
     <title>E-SHOP || DASHBOARD</title>
-  
+    @stack('styles')
     <!-- Custom fonts for this template-->
     <link href="{{asset('backend/vendor/fontawesome-free/css/all.min.css')}}" rel="stylesheet" type="text/css">
     <link href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i" rel="stylesheet">
   
     <!-- Custom styles for this template-->
-    <link href="{{asset('backend/css/sb-admin-2.min.css')}}" rel="stylesheet">
-    @stack('styles')
+    <link href="{{asset('backend/css/sb-admin-2.css')}}" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    
   
 </head>

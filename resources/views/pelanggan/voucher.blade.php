@@ -19,10 +19,12 @@
 </div>
 
 <script>
+    function getApiBaseUrl() {
+        return document.querySelector('meta[name="api-base-url"]').getAttribute('content');
+    }
 $(document).ready(function() {
     class VoucherManager {
         constructor() {
-            this.apiBaseUrl = 'http://127.0.0.1:8000/api';
             this.token = $('meta[name="api-token"]').attr('content');
             
             this.loadActiveVouchers();
@@ -30,7 +32,7 @@ $(document).ready(function() {
 
         loadActiveVouchers() {
             $.ajax({
-                url: `${this.apiBaseUrl}/vouchers/active`,
+                url: `${getApiBaseUrl()}/api/voucher/active`,
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${this.token}`,
@@ -76,20 +78,26 @@ $(document).ready(function() {
                 <div class="col-md-4 mb-3">
                     <div class="card voucher-card ${statusClass}">
                         <div class="card-body">
-                            <h5 class="card-title">${voucher.kode_voucher}</h5>
+                            <h4 class="card-voucher" style="font-size: 1.5em; color: black">
+                                <i class="fa fa-ticket fa-2x"></i>
+                                ${voucher.nama_voucher}
+                            </h4>
                             <p class="card-text">
-                                <strong>${voucher.nama_voucher}</strong><br>
-                                Diskon: ${formattedDiskon}<br>
-                                Min. Pembelian: ${formattedMinPembelian}
+                                <small class="text-muted" style="font-size: 0.8em">${voucher.kode_voucher}</small>
+                                <span class="d-block">
+                                    Diskon: ${formattedDiskon}
+                                </span>
+                                <span class="d-block">
+                                    Min. Pembelian: ${formattedMinPembelian}
+                                </span>
                             </p>
-                            <p> <small class="text-muted">
-                                    Berlaku: ${this.formatDate(voucher.tanggal_mulai)} 
+                            <p>
+                                <small class="text-muted">
+                                    <i class="fa fa-calendar fa-lg mr-2"></i>
+                                    ${this.formatDate(voucher.tanggal_mulai)} 
                                     s/d ${this.formatDate(voucher.tanggal_akhir)}
                                 </small>
                             </p>
-                            <span class="badge ${statusClass}">
-                                ${this.formatStatus(voucherData.status)}
-                            </span>
                         </div>
                     </div>
                 </div>
@@ -97,14 +105,20 @@ $(document).ready(function() {
         }
 
         handleError(xhr) {
-            let errorMessage = 'Terjadi kesalahan';
-            
+            let errorMessage = "Terjadi kesalahan";
+
             if (xhr.responseJSON && xhr.responseJSON.message) {
                 errorMessage = xhr.responseJSON.message;
             }
 
-            alert(errorMessage);
+            Swal.fire({
+                title: "Error!",
+                text: errorMessage,
+                icon: "error",
+                confirmButtonText: "OK"
+            });
         }
+
 
         formatRupiah(number) {
             return new Intl.NumberFormat('id-ID', {

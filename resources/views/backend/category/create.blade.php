@@ -64,19 +64,18 @@
     </div>
 </div>
 @endsection
-@push('styles')
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-@endpush
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-        function getCsrfToken() {
+    function getCsrfToken() {
         return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     }
 
     function getJwtToken() {
         return document.querySelector('meta[name="api-token"]').getAttribute('content');
+    }
+    function getApiBaseUrl(){
+        return document.querySelector('meta[name="api-base-url"]').getAttribute('content');
     }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -195,7 +194,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Kirim data ke backend
-            fetch('/api/kategori/create', {
+            fetch(`${getApiBaseUrl()}/api/kategori/create`, {
                 method: 'POST',
                 body: formData,
                 headers: {

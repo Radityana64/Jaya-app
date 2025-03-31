@@ -57,16 +57,14 @@
 
 @endsection
 
-@push('styles')
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-@endpush
-
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     function getJwtToken() {
-            return $('meta[name="api-token"]').attr('content');
-        }
+        return $('meta[name="api-token"]').attr('content');
+    }
+    function getApiBaseUrl(){
+        return document.querySelector('meta[name="api-base-url"]').getAttribute('content');
+    }
 document.addEventListener('DOMContentLoaded', function() {
     // Event listener untuk form submit
     document.getElementById('banner-form').addEventListener('submit', function(e) {
@@ -136,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('status', status);
 
         // Kirim data ke backend
-        fetch('/api/banner/create', {
+        fetch(`${getApiBaseUrl()}/api/banner/create`, {
             method: 'POST',
             body: formData,
             headers: {

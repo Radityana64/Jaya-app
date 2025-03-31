@@ -9,8 +9,8 @@
          </div>
      </div>
     <div class="card-header py-3">
-      <h6 class="m-0 font-weight-bold text-primary float-left">Product Lists</h6>
-      <a href="{{route ('produk.create') }}" class="btn btn-primary btn-sm float-right" data-toggle="tooltip" data-placement="bottom" title="Add Product"><i class="fas fa-plus"></i> Add Product</a>
+      <h6 class="m-0 font-weight-bold text-primary float-left">Lis Produk</h6>
+      <a href="{{route ('produk.create') }}" class="btn btn-primary btn-sm float-right" data-toggle="tooltip" data-placement="bottom" title="Add Product"><i class="fas fa-plus"></i> Tambah Produk</a>
     </div>
     <div class="card-body">
       <div class="table-responsive">
@@ -22,7 +22,7 @@
               <th>Kategori</th>
               <th>Produk</th>
               <th>Gambar</th>
-              <th>Action</th>
+              <th>Aksi</th>
             </tr>
           </thead>
           <tbody id="product-table-body">
@@ -35,8 +35,8 @@
 
 <div class="card shadow mb-4" id="product-detail" style="display:none;">
     <div class="card-header py-3">
-        <h6 class="m-0 font-weight-bold text-primary">Product Detail</h6>
-        <button class="btn btn-secondary btn-sm float-right" id="back-to-list">Back to Product List</button>
+        <h6 class="m-0 font-weight-bold text-primary">Detail Produk</h6>
+        <button class="btn btn-secondary btn-sm float-right" id="back-to-list">Kembali Ke Lis</button>
     </div>
     <div class="card-body">
         <div class="table-responsive">
@@ -69,14 +69,11 @@
 
 @push('styles')
   <link href="{{asset('backend/vendor/datatables/dataTables.bootstrap4.min.css')}}" rel="stylesheet">
-  
-  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
 @endpush
 
 @push('scripts')
   <script src="{{asset('backend/vendor/datatables/jquery.dataTables.min.js')}}"></script>
   <script src="{{asset('backend/vendor/datatables/dataTables.bootstrap4.min.js')}}"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
   <script>
     function getCsrfToken() {
@@ -86,14 +83,18 @@
     function getJwtToken() {
         return document.querySelector('meta[name="api-token"]').getAttribute('content');
     }
-   $(document).ready(function() {
+    function getApiBaseUrl(){
+        return document.querySelector('meta[name="api-base-url"]').getAttribute('content');
+    }
+
+    $(document).ready(function() {
     // Fetch product data from API
     fetchProducts();
     setupNonaktifButtons();
 
     function fetchProducts() {
         $.ajax({
-            url: 'http://127.0.0.1:8000/api/produk',
+            url: `${getApiBaseUrl()}/api/produk`,
             method: 'GET',
             success: function(response) {
                 populateProductTable(response.data);
@@ -131,7 +132,7 @@
     }).then((result) => {
         if (result.isConfirmed) {
             $.ajax({
-                url: `http://127.0.0.1:8000/api/produk/status/${productId}`,
+                url: `${getApiBaseUrl()}/api/produk/status/${productId}`,
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -184,7 +185,7 @@ function nonaktifProductVariation(variationId) {
     }).then((result) => {
         if (result.isConfirmed) {
             $.ajax({
-                url: `http://127.0.0.1:8000/api/produk-variasi/status/${variationId}`,
+                url: `${getApiBaseUrl()}/api/produk-variasi/status/${variationId}`,
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -248,6 +249,7 @@ function nonaktifProductVariation(variationId) {
                     <td>
                         <a href="#" class="btn btn-primary btn-sm detailBtn" data-id="${product.id_produk}">Detail</a>
                         <a href="{{url('produk/edit/${product.id_produk}')}}" class="btn btn-primary btn-sm">Edit</a>
+                        <a href="{{url('ulasan/${product.id_produk}')}}" class="btn btn-primary btn-sm">Ulasan</a>
                         <button type="button" class="btn btn-danger btn-sm nonaktifBtn" data-id="${product.id_produk}">Nonaktif</button>
                     </td>
                 </tr>
@@ -309,7 +311,7 @@ function nonaktifProductVariation(variationId) {
 
     function fetchProductDetail(productId) {
         $.ajax({
-            url: `http://127.0.0.1:8000/api/produk/${productId}`,
+            url: `${getApiBaseUrl()}/api/produk/${productId}`,
             method: 'GET',
             success: function(response) {
                 populateProductDetailTable(response.data);

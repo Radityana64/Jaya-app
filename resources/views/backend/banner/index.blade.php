@@ -9,8 +9,8 @@
         </div>
     </div>
     <div class="card-header py-3">
-        <h6 class="m-0 font-weight-bold text-primary float-left">Banner Lists</h6>
-        <a href="{{ route('banner.create') }}" class="btn btn-primary btn-sm float-right" data-toggle="tooltip" data-placement="bottom" title="Add Banner"><i class="fas fa-plus"></i> Add Banner</a>
+        <h6 class="m-0 font-weight-bold text-primary float-left">Lis Banner</h6>
+        <a href="{{ route('banner.create') }}" class="btn btn-primary btn-sm float-right" data-toggle="tooltip" data-placement="bottom" title="Add Banner"><i class="fas fa-plus"></i> Tambah Banner</a>
     </div>
     <div class="card-body">
         <div class="table-responsive">
@@ -36,22 +36,30 @@
 
 @push('styles')
 <link href="{{ asset('backend/vendor/datatables/dataTables.bootstrap4.min.css') }}" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
 @endpush
 
 @push('scripts')
 <script src="{{ asset('backend/vendor/datatables/jquery.dataTables.min.js') }}"></script>
 <script src="{{ asset('backend/vendor/datatables/dataTables.bootstrap4.min.js') }}"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
+    function getCsrfToken() {
+        return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+
+    function getJwtToken() {
+        return document.querySelector('meta[name="api-token"]').getAttribute('content');
+    }
+    function getApiBaseUrl(){
+        return document.querySelector('meta[name="api-base-url"]').getAttribute('content');
+    }
 $(document).ready(function() {
     // Fetch banner data from API
     fetchBanners();
 
     function fetchBanners() {
         $.ajax({
-            url: 'http://127.0.0.1:8000/api/banners/aktif', // Ganti dengan endpoint API yang sesuai
+            url: `${getApiBaseUrl()}/api/banners/aktif`, // Ganti dengan endpoint API yang sesuai
             method: 'GET',
             success: function(response) {
                 populateBannerTable(response.data);
@@ -111,8 +119,12 @@ $(document).ready(function() {
         }).then((result) => {
             if (result.isConfirmed) {
                 $.ajax({
-                    url: `http://127.0.0.1:8000/api/banners/nonaktif/${bannerId}`, // Ganti dengan endpoint API yang sesuai
+                    url: `${getApiBaseUrl()}/api/banners/nonaktif/${bannerId}`, // Ganti dengan endpoint API yang sesuai
                     method: 'PATCH',
+                    headers: {
+                        'X-CSRF-TOKEN': getCsrfToken(),
+                        'Authorization': `Bearer ${getJwtToken()}`
+                    },
                     success: function(response) {
                         Swal.fire({
                             title: "Dinonaktifkan!",

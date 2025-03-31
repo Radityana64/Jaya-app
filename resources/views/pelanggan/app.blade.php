@@ -3,38 +3,84 @@
 @section('title','E-SHOP || PRODUCT PAGE')
 
 @section('main-content')
-<div class="container profile-container py-4" style="margin: 20px;">
-    <div class="row">
-        <div class="col-md-3 sidebar">
-            <div class="list-group">
-                <p data-page="profil" class="list-group-item page-link {{ $activePage ?? 'active' }}">
-                    Profil Saya
-                </p>
-                <p data-page="alamat" class="list-group-item page-link">
-                    Alamat
-                </p>
-                <p data-page="voucher" class="list-group-item page-link">
-                    Voucher
-                </p>
-                <p data-page="pesanan" class="list-group-item page-link">
-                    Pesanan
-                </p>
+<div class="container">
+    <div class="profile-container py-4" style="margin-top: 20px;">
+        <div class="row">
+            <div class="col-md-3 sidebar">
+                <div class="list-group">
+                    <p data-page="profil" class="list-group-item page-link {{ $activePage ?? 'active' }}">
+                        <i class="fa fa-user mr-2"></i>
+                        <span class="font-weight-bold">Profil Saya</span>
+                    </p>
+                    <p data-page="alamat" class="list-group-item page-link">
+                        <i class="fa fa-map-marker mr-2"></i>
+                        <span class="font-weight-bold">Alamat</span>
+                    </p>
+                    <p data-page="voucher" class="list-group-item page-link">
+                        <i class="fa fa-ticket mr-2"></i>
+                        <span class="font-weight-bold">Voucher</span>
+                    </p>
+                    <p data-page="pesanan" class="list-group-item page-link">
+                        <i class="fa fa-shopping-bag mr-2"></i>
+                        <span class="font-weight-bold">Pesanan</span>
+                    </p>
+                </div>
             </div>
-        </div>
 
-        <div class="col-md-9" id="page-content">
-            @if(isset($activePage))
-                @include("pelanggan.{$activePage}")
-            @else
-                @include('pelanggan.profil')
-            @endif
+            <div class="col-md-9" id="page-content">
+                @if(isset($activePage))
+                    @include("pelanggan.{$activePage}")
+                @else
+                    @include('pelanggan.profil')
+                @endif
+            </div>
         </div>
     </div>
 </div>
 @endsection
 
+@push('styles')
+<style>
+.list-group {
+    position: sticky;
+    top: 90px; /* Sesuaikan dengan tinggi navbar */
+    background: white;
+    z-index: 900;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+}
+.list-group-item {
+    border: none;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    background-color: #f8f9fa;
+    color: #495057;
+    transition: all 0.3s ease;
+}
+
+.list-group-item:hover {
+    background-color: #e9ecef;
+    cursor: pointer;
+    color: #000000;
+}
+
+.list-group-item.active {
+    background-color: #000000;
+    color: white;
+}
+
+.list-group-item.active:hover {
+    background-color: #797979;
+}
+
+.font-weight-bold {
+    font-weight: 600 !important;
+}
+</style>
+@endpush
+
 @push('scripts')
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> -->
 <script>
 $(document).ready(function() {
     const pageLinks = $('.page-link');
@@ -63,29 +109,12 @@ $(document).ready(function() {
             },
             error: function(xhr, status, error) {
                 console.error('Gagal memuat halaman:', error);
-                alert('Terjadi kesalahan. Silakan coba lagi.');
-            }
-        });
-    });
-
-    // Handle browser back/forward
-    $(window).on('popstate', function() {
-        const path = window.location.pathname;
-        const page = path.split('/').pop();
-        
-        // Reload content or update view
-        $.ajax({
-            url: `/data-pelanggan/${page}`,
-            method: 'GET',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            success: function(html) {
-                pageContent.html(html);
-            },
-            error: function(xhr, status, error) {
-                console.error('Gagal memuat halaman:', error);
-                alert('Terjadi kesalahan. Silakan coba lagi.');
+                Swal.fire({
+                    title: "Terjadi Kesalahan!",
+                    text: `Gagal memuat halaman: ${xhr.responseText || error}`,
+                    icon: "error",
+                    confirmButtonText: "OK"
+                });
             }
         });
     });

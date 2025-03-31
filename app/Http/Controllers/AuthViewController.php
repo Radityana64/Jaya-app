@@ -19,7 +19,7 @@ class AuthViewController extends Controller
     public function __construct()
     {
         // Set base URL API dari environment variable
-        $this->apiBaseUrl = env('API_BASE_URL', 'http://127.0.0.1:8000');
+        $this->apiBaseUrl = config('services.api_base_url');
     }
 
     public function showRegister()
@@ -48,17 +48,17 @@ class AuthViewController extends Controller
                 // Jika registrasi berhasil
                 return redirect()->route('login')->with('status', 'Registrasi Success');
             } else {
-                // Jika respons tidak berhasil, ambil pesan kesalahan dari API
+                // Jika respons tidak berhasil, ambil data dari response JSON
                 $responseData = $response->json();
-                $errorMessage = $responseData['meta']['message'] ?? 'Registrasi Gagal';
+                $errorMessage = $responseData['message'] ?? 'Registrasi Gagal';
 
-                // Jika ada kesalahan validasi, ambil detail kesalahan
-                if (isset($responseData['error'])) {
-                    $errors = $responseData['error'];
-                    return back()->withErrors($errors)->withInput();
+                // Cek apakah ada error validasi dari API (misalnya format seperti yang Anda berikan)
+                if (isset($responseData['status']) && $responseData['status'] === 'error' && isset($responseData['errors'])) {
+                    // Kembalikan ke halaman sebelumnya dengan pesan error dari API
+                    return back()->withErrors($responseData['errors'])->withInput();
                 }
 
-                // Jika tidak ada detail kesalahan, lemparkan exception
+                // Jika tidak ada error validasi spesifik, lempar exception dengan pesan umum
                 throw new \Exception($errorMessage);
             }
         } catch (\Exception $e) {
@@ -74,48 +74,68 @@ class AuthViewController extends Controller
 
     public function login(Request $request)
     {
-        // Validasi input dari request
         $request->validate([
             'email' => 'required|email',
-            'password' => 'required|string'
+            'password' => 'required|string',
         ]);
 
+        $credentials = $request->only('email', 'password');
         try {
-            // Mengirimkan request ke API untuk login
-            $response = Http::post($this->apiBaseUrl . '/api/user/login', [
-                'email' => $request->email,
-                'password' => $request->password,
-            ]);
-
-            // Mengambil data dari response
+            // Panggil API untuk autentikasi
+            $response = Http::post($this->apiBaseUrl . '/api/user/login', $credentials);
             $responseData = $response->json();
 
-            // Mengecek apakah response berhasil dan token ada
-            if ($response->successful() && isset($responseData['data']['token'])) {
-                
-                // Menyimpan token ke session
+            if ($response->successful() && isset($responseData['status']) && $responseData['status'] === 'success') {
+                // Jika login berhasil
+                $request->session()->regenerate();
+
+                // Simpan token dan user info ke session
                 session(['auth.token' => $responseData['data']['token']]);
                 session(['user_info' => $responseData['data']['user']]);
 
-                // $previousUrl = session('previous_url', route('index'));
-                // if ($previousUrl === route('login')) {
-                //     $previousUrl = route('index'); // Redirect ke index jika previous URL adalah login
-                // }
-                
-                // session()->forget('previous_url');
-                // Log::info('Redirecting to: ' . $previousUrl);
-
-                // Redirect
+                if (Auth::guard('web')->attempt($credentials)) {
+                    $request->session()->regenerate();
+                }
                 return redirect()->route('index');
-                
             } else {
-                // Jika tidak berhasil, ambil pesan error dari response
-                $errorMessage = $responseData['message'] ?? 'Invalid credentials or failed to get token from API response.';
-                throw new \Exception($errorMessage);
+                // Tangani error berdasarkan status kode HTTP dan response JSON
+                $errorMessage = $responseData['message'] ?? 'Login failed';
+
+                // Error validasi: Jika ada 'errors'
+                if (isset($responseData['status']) && $responseData['status'] === 'error' && isset($responseData['errors'])) {
+                    return redirect()->back()->withErrors($responseData['errors'])->withInput();
+                }
+
+                // Error umum: Jika ada 'message' (misalnya akun nonaktif atau pengguna tidak ditemukan)
+                if (isset($responseData['status']) && $responseData['status'] === 'error' && isset($responseData['message'])) {
+                    return redirect()->back()->withErrors(['login' => $responseData['message']])->withInput();
+                }
+
+                // Error kredensial salah: Jika ada 'error' (tanpa 'status')
+                if (isset($responseData['error'])) {
+                    return redirect()->back()->withErrors(['login' => $responseData['error']])->withInput();
+                }
+
+                // Fallback untuk error lain
+                return redirect()->back()->withErrors(['login' => $errorMessage])->withInput();
             }
         } catch (\Exception $e) {
-            // Menangani error dan mengembalikan pesan error
-            return redirect()->back()->withErrors(['login' => 'Login failed: ' . $e->getMessage()]);
+            // Jika terjadi exception (misalnya API tidak respons)
+            \Log::warning('Login error: ' . $e->getMessage());
+            return redirect()->back()->withErrors(['login' => 'An error occurred: ' . $e->getMessage()])->withInput();
         }
+    }
+
+    public function webLogout(Request $request)
+    {
+        \Log::info('Web Logout called', ['session' => session()->all()]);
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Web session logged out successfully'
+        ]);
     }
 }

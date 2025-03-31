@@ -5,7 +5,7 @@
     <div class="card-body">
         <form id="profileForm">
             <div class="row">
-                <div class="col-md-8">
+                <div class="col-md-12">
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label>Nama Lengkap</label>
@@ -68,24 +68,23 @@
 
 <script>
 $(document).ready(function() {
-    // Fungsi untuk mengambil token JWT dari meta tag
     function getJwtToken() {
         return $('meta[name="api-token"]').attr('content');
     }
-
-    // Fungsi untuk memuat data profil
+    function getApiBaseUrl() {
+        return document.querySelector('meta[name="api-base-url"]').getAttribute('content');
+    }
     function loadProfileData() {
         const jwtToken = getJwtToken();
 
         $.ajax({
-            url: 'http://127.0.0.1:8000/api/user/profil',
+            url: `${getApiBaseUrl()}/api/user/profil`,
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${jwtToken}`,
                 'Accept': 'application/json'
             },
             success: function(response) {
-                // Isi form dengan data profil
                 $('#nama_lengkap').val(response.data.nama_lengkap);
                 $('#username').val(response.data.pelanggan.username);
                 $('#email').val(response.data.email);
@@ -102,23 +101,69 @@ $(document).ready(function() {
         });
     }
 
-    // Panggil fungsi load profil saat halaman dimuat
     loadProfileData();
 
-    // Handler untuk submit form
+    function formatPhoneNumber(phone) {
+        phone = phone.replace(/\D/g, ''); // Hapus semua karakter non-digit
+
+        if (phone.startsWith("08")) {
+            return "628" + phone.substring(2);
+        } else if (phone.startsWith("+628")) {
+            return "628" + phone.substring(4);
+        } else if (phone.startsWith("628")) {
+            return phone;
+        }
+
+        return ""; // Jika tidak sesuai format, kosongkan (untuk validasi)
+    }
+
+    $('#telepon').on('input', function() {
+        let value = $(this).val();
+        value = value.replace(/\D/g, ''); // Hanya angka
+
+        if (value.length > 14) {
+            value = value.substring(0, 14); // Batasi panjang 14 angka
+        }
+
+        $(this).val(value);
+    });
+
     $('#profileForm').on('submit', function(e) {
         e.preventDefault();
+
+        let teleponInput = $('#telepon').val();
+
+        // Cek apakah format awal nomor telepon sesuai
+        if (!/^(\+628|628|08)\d{7,11}$/.test(teleponInput)) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Nomor Telepon Tidak Valid',
+                text: 'Masukan Nomor Dengan Benar.'
+            });
+            return;
+        }
+
+        // Format nomor telepon ke standar 628
+        const formattedPhone = formatPhoneNumber(teleponInput);
+        if (formattedPhone === "") {
+            Swal.fire({
+                icon: 'error',
+                title: 'Nomor Telepon Tidak Valid',
+                text: 'Nomor telepon tidak sesuai format yang diperbolehkan.'
+            });
+            return;
+        }
 
         const jwtToken = getJwtToken();
         const formData = {
             nama_lengkap: $('#nama_lengkap').val(),
             email: $('#email').val(),
             username: $('#username').val(),
-            telepon: $('#telepon').val()
+            telepon: formattedPhone
         };
 
         $.ajax({
-            url: 'http://127.0.0.1:8000/api/pelanggan/update',
+            url: `${getApiBaseUrl()}/api/pelanggan/update`,
             method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${jwtToken}`,
@@ -133,28 +178,40 @@ $(document).ready(function() {
                         title: 'Profil Berhasil Diperbarui',
                         showConfirmButton: true,
                     });
-
-                    // Muat ulang data profil setelah update berhasil
                     loadProfileData();
                 } else {
                     let errorMessage = 'Gagal memperbarui profil';
                     if (response.errors) {
-                        errorMessage = Object.values(response.errors).flat().join('\n');
+                        // Menggabungkan semua pesan error menjadi satu string dengan pemisah baris
+                        errorMessage = Object.keys(response.errors)
+                            .map(key => `${key}: ${response.errors[key].join(', ')}`)
+                            .join('\n');
                     }
 
                     Swal.fire({
                         icon: 'error',
                         title: 'Gagal Memperbarui Profil',
-                        text: errorMessage
+                        text: errorMessage,
+                        whiteSpace: 'pre-line' // Memastikan baris baru ditampilkan dengan benar
                     });
                 }
             },
             error: function(xhr, status, error) {
+                let errorMessage = 'Silakan coba lagi nanti';
+                if (xhr.responseJSON && xhr.responseJSON.errors) {
+                    // Menangani error validasi dari response JSON
+                    errorMessage = Object.keys(xhr.responseJSON.errors)
+                        .map(key => `${key}: ${xhr.responseJSON.errors[key].join(', ')}`)
+                        .join('<br>'); // Menggunakan <br> untuk baris baru
+                } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+
                 console.error('Error:', error);
                 Swal.fire({
                     icon: 'error',
                     title: 'Kesalahan Sistem',
-                    text: 'Silakan coba lagi nanti'
+                    html: errorMessage // Menggunakan html, bukan text
                 });
             }
         });

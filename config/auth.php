@@ -35,9 +35,13 @@ return [
     |
     */
 
-    'guards' => [
+  'guards' => [
         'web' => [
-            'driver' => 'jwt',
+            'driver' => 'session', // Untuk web
+            'provider' => 'users',
+        ],
+        'api' => [
+            'driver' => 'jwt', // Untuk API
             'provider' => 'users',
         ],
     ],

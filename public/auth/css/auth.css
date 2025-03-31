@@ -27,23 +27,31 @@ body {
 
 .left-side {
     flex: 1;
-    background: #f8f8f8;
+    background: #ffffff; /* Warna putih untuk left-side */
     padding: 40px;
-    position: relative;
+    display: flex; /* Menggunakan flex untuk centering */
+    flex-direction: column;
+    justify-content: center; /* Vertikal tengah */
+    align-items: center; /* Horizontal tengah */
 }
 
 .logo {
     font-size: 24px;
     font-weight: 600;
     color: #333;
-    margin-bottom: 30px;
+    margin-bottom: 10px; /* Sedikit dikurangi untuk keseimbangan */
+}
+
+.logo img {
+    max-width: 200px; /* Batasi ukuran logo agar tidak terlalu besar */
+    height: auto;
 }
 
 .image-container {
     display: flex;
     justify-content: center;
     align-items: center;
-    height: calc(100% - 60px);
+    flex-grow: 1; /* Memungkinkan kontainer gambar mengisi ruang tersisa */
 }
 
 .featured-image {
@@ -54,6 +62,7 @@ body {
 
 .right-side {
     flex: 1;
+    background: #f8f8f8; /* Warna abu-abu muda untuk right-side */
     padding: 40px;
 }
 
@@ -212,10 +221,6 @@ input:focus {
 
     .form-container {
         max-width: 100%;
-    }
-
-    .logo {
-        margin-bottom: 15px;
     }
 }
 

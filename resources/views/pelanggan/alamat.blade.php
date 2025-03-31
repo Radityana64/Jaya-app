@@ -12,7 +12,7 @@
         <div class="modal fade" id="addressModal" tabindex="-1" role="dialog" aria-labelledby="addressModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-lg" role="document">
                 <div class="modal-content">
-                    <div class="modal-title-container bg-primary text-white p-3">
+                    <div class="modal-title-container p-3">
                         <h5 class="modal-title mb-0" id="modalTitle">Tambah Alamat Baru</h 5>
                     </div>
                     <div class="modal-body" style="padding: 20px">
@@ -73,10 +73,14 @@
 <script>
 $(document).ready(function() {
     // Fungsi untuk memuat daftar alamat menggunakan AJAX
+
+    function getApiBaseUrl() {
+        return document.querySelector('meta[name="api-base-url"]').getAttribute('content');
+    }
     function loadAddresses() {
         const jwtToken = getJwtToken();
         $.ajax({
-            url: 'http://127.0.0.1:8000/api/alamat',
+            url: `${getApiBaseUrl()}/api/alamat`,
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${jwtToken}`,
@@ -121,7 +125,7 @@ $(document).ready(function() {
     // Fungsi untuk memuat provinsi
     function loadProvinsi() {
         return $.ajax({
-            url: 'http://127.0.0.1:8000/api/alamat/provinsi',
+            url: `${getApiBaseUrl()}/api/alamat/provinsi`,
             method: 'GET',
             success: function(response) {
                 const $provinsiSelect = $('#provinsiSelect');
@@ -153,7 +157,7 @@ $(document).ready(function() {
         $kodeposSelect.prop('disabled', true);
 
         return $.ajax({
-            url: `http://127.0.0.1:8000/api/alamat/kabupaten/${provinsiId}`,
+            url: `${getApiBaseUrl()}/api/alamat/kabupaten/${provinsiId}`,
             method: 'GET',
             success: function(response) {
                 $kabupatenSelect.empty().append('<option value="">Pilih Kabupaten</option>');
@@ -183,7 +187,7 @@ $(document).ready(function() {
         $kodeposSelect.prop('disabled', true);
 
         return $.ajax({
-            url: `http://127.0.0.1:8000/api/alamat/kodepos/${kabupatenId}`,
+            url: `${getApiBaseUrl()}/api/alamat/kodepos/${kabupatenId}`,
             method: 'GET',
             success: function(response) {
                 $kodeposSelect.empty().append('<option value="">Pilih Kode Pos</option>');
@@ -212,7 +216,7 @@ $(document).ready(function() {
         const jwtToken = getJwtToken();
         
         $.ajax({
-            url: `http://127.0.0.1:8000/api/alamat/${addressId}`,
+            url: `${getApiBaseUrl()}/api/alamat/${addressId}`,
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${jwtToken}`,
@@ -265,8 +269,8 @@ $(document).ready(function() {
 
         $.ajax({
             url: addressId 
-                ? `http://127.0.0.1:8000/api/addresses/${addressId}` 
-                : 'http://127.0.0.1:8000/api/addresses',
+                ? `${getApiBaseUrl()}/api/addresses/${addressId}` 
+                : `${getApiBaseUrl()}/api/addresses`,
             method: addressId ? 'PUT' : 'POST',
             data: JSON.stringify(formData),
             headers: {
@@ -311,7 +315,7 @@ $(document).ready(function() {
         }).then((result) => {
             if (result.isConfirmed) {
                 $.ajax({
-                    url: `http://127.0.0.1:8000/api/addresses/${addressId}`,
+                    url: `${getApiBaseUrl()}/api/addresses/${addressId}`,
                     method: 'DELETE',
                     headers: {
                         'Authorization': `Bearer ${jwtToken}`

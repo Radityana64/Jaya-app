@@ -1,101 +1,80 @@
 
 	<!-- Start Footer Area -->
 	<footer class="footer">
-		<!-- Footer Top -->
-		<div class="footer-top section">
-			<div class="container">
-				<div class="row">
-					<div class="col-lg-5 col-md-6 col-12">
-						<!-- Single Widget -->
-						<div class="single-footer about">
-						<div class="logo">
-							<a href="/"><img src="/frontend/img/jaya%20logo.jpg" alt="logo" style="width: 33%; height: auto;"></a>
-						</div>
-							<p class="text">Kepercayaan Anda adalah prioritas kami. Kami hadir untuk memberikan pengalaman belanja terbaik, karena setiap pilihan Anda adalah langkah menuju kepuasan</p>
-							<p class="call">Got Question? Call us 24/7<span><a href="https://wa.me/+6281238465833">+62 81238465833</a></span></p>
-						</div>
-						<!-- End Single Widget -->
-					</div>
-					<div class="col-lg-2 col-md-6 col-12">
-						<!-- Single Widget -->
-						<div class="single-footer links">
-							<h4>Information</h4>
-							<ul>
-								<li><a href="#">About Us</a></li>
-								<li><a href="#">Faq</a></li>
-								<li><a href="#">Terms & Conditions</a></li>
-								<li><a href="#">Contact Us</a></li>
-								<li><a href="#">Help</a></li>
-							</ul>
-						</div>
-						<!-- End Single Widget -->
-					</div>
-					<div class="col-lg-2 col-md-6 col-12">
-						<!-- Single Widget -->
-						<div class="single-footer links">
-							<h4>Customer Service</h4>
-							<ul>
-								<li><a href="#">Payment Methods</a></li>
-								<li><a href="#">Money-back</a></li>
-								<li><a href="#">Returns</a></li>
-								<li><a href="#">Shipping</a></li>
-								<li><a href="#">Privacy Policy</a></li>
-							</ul>
-						</div>
-						<!-- End Single Widget -->
-					</div>
-					<div class="col-lg-3 col-md-6 col-12">
-						<!-- Single Widget -->
-						<div class="single-footer social">
-							<h4>Get In Tuch</h4>
-							<!-- Single Widget -->
-							<div class="contact">
-								<ul>
-									<li>H947+5WJ, Cempaga, Bangli, Bangli Regency, Bali 80613</li>
-									<li>jayastudio@gmail.com</li>
-									<li>+62 81238465833</li>
-								</ul>
-							</div>
-							<!-- End Single Widget -->
-							<div class="social-links">
-								<p>Follow me:</p>
-								<a href="https://www.facebook.com/oman.sidembunut" target="_blank" title="Facebook">
-									<img src="https://img.icons8.com/ios-filled/30/ffffff/facebook.png" alt="Facebook">
-								</a>
-								<a href="https://www.instagram.com/jaya_hangdrum/" target="_blank" title="Instagram">
-									<img src="https://img.icons8.com/ios-filled/30/ffffff/instagram-new.png" alt="Instagram">
-								</a>
-								<a href="https://github.com/Radityana64/Jaya-app" target="_blank" title="GitHub">
-									<img src="https://img.icons8.com/ios-filled/30/ffffff/github.png" alt="GitHub">
-								</a>
-							</div>
-							<!-- <div class="sharethis-inline-follow-buttons"></div> -->
-						</div>
-						<!-- End Single Widget -->
-					</div>
-				</div>
-			</div>
-		</div>
-		<!-- End Footer Top -->
-		<div class="copyright">
-			<div class="container">
-				<div class="inner">
-					<div class="row">
-						<div class="col-lg-6 col-12">
-							<div class="left">
-								<p>Copyright © {{date('Y')}} <a href="https://github.com/Radityana64/Jaya-app" target="_blank">Jaya Studio</a>  -  All Rights Reserved.</p>
-							</div>
-						</div>
-						<div class="col-lg-6 col-12">
-							<div class="right">
-								
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-	</footer>
+    <!-- Footer Top -->
+    <div class="footer-top section">
+        <div class="container">
+            <div class="row align-items-start">
+                <div class="col-lg-8 col-md-7 col-12">
+                    <!-- About Widget -->
+                    <div class="single-footer about">
+                        <div class="logo">
+                            <a href="/">
+                                <img src="/frontend/img/jaya%20logo.png" alt="Jaya Studio Logo" class="footer-logo">
+                            </a>
+                        </div>
+                        <p class="text">Kepercayaan Anda adalah prioritas kami. Kami hadir untuk memberikan pengalaman belanja terbaik, karena setiap pilihan Anda adalah langkah menuju kepuasan.</p>
+                        <p class="call">Ada Pertanyaan? Hubungi kami 24/7 <span><a href="https://wa.me/+6281238465833">+62 812-3846-5833</a></span></p>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-5 col-12">
+                    <!-- Social/Contact Widget -->
+                    <div class="single-footer social">
+                        <h4>Lebih Dekat</h4>
+                        <div class="contact">
+						<ul class="contact-list">
+                                <li><i class="fa fa-map-marker"></i> H947+5WJ, Cempaga, Bangli, Bali 80613</li>
+                                <li><i class="fa fa-envelope"></i> jayastudio@gmail.com</li>
+                                <li><i class="fa fa-phone"></i> +62 812-3846-5833</li>
+                            </ul>
+                            </ul>
+                        </div>
+                        <div class="social-links">
+                            <p>Ikuti kami:</p>
+                            <a href="https://www.facebook.com/oman.sidembunut" target="_blank" title="Facebook" class="social-icon">
+                                <img src="https://img.icons8.com/ios-filled/30/ffffff/facebook.png" alt="Facebook">
+                            </a>
+                            <a href="https://www.instagram.com/jaya_hangdrum/" target="_blank" title="Instagram" class="social-icon">
+                                <img src="https://img.icons8.com/ios-filled/30/ffffff/instagram-new.png" alt="Instagram">
+                            </a>
+                            <a href="https://github.com/Radityana64/Jaya-app" target="_blank" title="GitHub" class="social-icon">
+                                <img src="https://img.icons8.com/ios-filled/30/ffffff/github.png" alt="GitHub">
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Footer Bottom -->
+    <div class="footer-bottom">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-6 col-12">
+                    <div class="copyright-text text-lg-left text-center">
+                        <p>Copyright © {{ date('Y') }} <a href="https://github.com/Radityana64/Jaya-app" target="_blank">Jaya Studio</a> - All Rights Reserved.</p>
+                    </div>
+                </div>
+                <div class="col-lg-6 col-12">
+                    <div class="right text-lg-right text-center">
+                        <!-- Add additional links or content here if needed -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</footer>
+<style>
+	.footer-top.section {
+    padding: 40px 0; /* Consistent padding */
+}
+
+.footer-logo {
+    width: 150px; /* Fixed width for consistency */
+    height: auto;
+    margin-bottom: 20px;
+}
+</style>
 	<!-- /End Footer Area -->
  
 	<!-- Jquery -->
@@ -107,7 +86,7 @@
 	<!-- Bootstrap JS -->
 	<script src="{{asset('frontend/js/bootstrap.min.js')}}"></script>
 	<!-- Color JS -->
-	<script src="{{asset('frontend/js/colors.js')}}"></script>
+	<!-- <script src="{{asset('frontend/js/colors.js')}}"></script> -->
 	<!-- Slicknav JS -->
 	<script src="{{asset('frontend/js/slicknav.min.js')}}"></script>
 	<!-- Owl Carousel JS -->
@@ -134,9 +113,10 @@
 	<!-- Active JS -->
 	<script src="{{asset('frontend/js/active.js')}}"></script>
 
-	
+	<!-- jQuery -->
+<!-- <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> -->
 	@stack('scripts')
-	<script>
+	<!-- <script>
 		setTimeout(function(){
 		  $('.alert').slideUp();
 		},5000);
@@ -160,4 +140,4 @@
 
 			});
 		});
-	  </script>
+	  </script> -->

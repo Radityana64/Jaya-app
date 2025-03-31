@@ -10,8 +10,8 @@
         </div>
     </div>
     <div class="card-header py-3">
-        <h6 class="m-0 font-weight-bold text-primary float-left">Coupon List</h6>
-        <a href="{{ route('voucher.create') }}" class="btn btn-primary btn-sm float-right" data-toggle="tooltip" data-placement="bottom" title="Add Coupon"><i class="fas fa-plus"></i> Add Coupon</a>
+        <h6 class="m-0 font-weight-bold text-primary float-left">Lis Voucer</h6>
+        <a href="{{ route('voucher.create') }}" class="btn btn-primary btn-sm float-right" data-toggle="tooltip" data-placement="bottom" title="Add Coupon"><i class="fas fa-plus"></i> Tambah Voucer</a>
     </div>
     <div class="card-body">
         <div class="table-responsive">
@@ -19,13 +19,13 @@
                 <thead>
                     <tr>
                         <th>No</th>
-                        <th>Kode Voucher</th>
-                        <th>Nama Voucher</th>
+                        <th>Kode Voucer</th>
+                        <th>Nama Voucer</th>
                         <th>Diskon</th>
                         <th>Min Pembelian</th>
                         <th>Status</th>
                         <th>Berhasil (Tanggal Mulai - Tanggal Berhenti)</th>
-                        <th>Action</th>
+                        <th>Aksi</th>
                     </tr>
                 </thead>
                 <tbody id="coupon-table-body">
@@ -40,7 +40,6 @@
 
 @push('styles')
 <link href="{{ asset('backend/vendor/datatables/dataTables.bootstrap4.min.css') }}" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.css" />
 <style>
     div.dataTables_wrapper div.dataTables_paginate {
         display: none;
@@ -51,7 +50,6 @@
 @push('scripts')
 <script src="{{ asset('backend/vendor/datatables/jquery.dataTables.min.js') }}"></script>
 <script src="{{ asset('backend/vendor/datatables/dataTables.bootstrap4.min.js') }}"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/2.1.2/sweetalert.min.js"></script>
 
 <script>
     function getCsrfToken() {
@@ -61,9 +59,12 @@
     function getJwtToken() {
         return document.querySelector('meta[name="api-token"]').getAttribute('content');
     }
+    function getApiBaseUrl(){
+        return document.querySelector('meta[name="api-base-url"]').getAttribute('content');
+    }
 
     document.addEventListener('DOMContentLoaded', function() {
-        const apiUrl = 'http://127.0.0.1:8000/api/vouchers';
+        const apiUrl = `${getApiBaseUrl()}/api/vouchers`;
         
         // Fetch data from the API
         fetch(apiUrl, {
@@ -84,6 +85,8 @@
             let rows = '';
 
             coupons.forEach((coupon, index) => {
+                const tanggalMulai = coupon.tanggal_mulai.split(' ')[0]; // Mengambil hanya tanggal
+                const tanggalAkhir = coupon.tanggal_akhir.split(' ')[0];
                 rows += `
                     <tr>
                         <td>${index + 1}</td>
@@ -92,10 +95,10 @@
                         <td>${coupon.diskon}%</td>
                         <td>${coupon.min_pembelian}</td>
                         <td>${coupon.status}</td>
-                        <td>${coupon.tanggal_mulai} - ${coupon.tanggal_akhir}</td>
+                        <td>${tanggalAkhir} - ${tanggalMulai}</td>
                         <td>
-                            <a href="/coupon/${coupon.id_voucher}/edit" class="btn btn-primary btn-sm">Edit</a>
-                            <button class="btn btn-danger btn-sm dltBtn" data-id="${coupon.id_voucher}">Delete</button>
+                            <a href="/voucher/edit/${coupon.id_voucher}" class="btn btn-primary btn-sm">Lihat</a>
+                            <button class="btn btn-danger btn-sm dltBtn" data-id="${coupon.id_voucher}">Nonaktif</button>
                         </td>
                     </tr>
                 `;
@@ -111,49 +114,58 @@
         }
 
         function attachDeleteEvent() {
-            $('.dltBtn').on('click', function() {
-                const id = $(this).data('id');
-                swal({
-                    title: "Are you sure?",
-                    text: "Once deleted, you will not be able to recover this data!",
+            $(document).on('click', '.dltBtn', async function() {
+                const idCoupon = $(this).data('id');
+
+                const result = await Swal.fire({
+                    title: "Apakah Anda yakin?",
+                    text: "Setelah dinonaktifkan, kupon ini tidak bisa dikembalikan!",
                     icon: "warning",
-                    buttons: true,
-                    dangerMode: true,
-                })
-                .then((willDelete) => {
-                    if (willDelete) {
-                        fetch(`http://127.0.0.1:8000/api/vouchers/nonaktif/${id}`, {
-                            method: 'PUT',
-                            headers: {
-                                'Authorization': 'Bearer ' + getJwtToken(),
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': getCsrfToken()
-                            }
-                        })
-                        .then(response => {
-                            if (response.ok) {
-                                swal("Poof! Your coupon has been nonaktif!", {
-                                    icon: "success",
-                                });
-                                // Refresh the table
-                                fetch(apiUrl, {
-                                    method: 'GET',
-                                    headers: {
-                                        'Authorization': 'Bearer ' + getJwtToken(),
-                                        'Content-Type': 'application/json'
-                                    }
-                                })
-                                .then(response => response.json())
-                                .then(data => {
-                                    populateTable(data.data);
-                                });
-                            } else {
-                                swal("Error for Nonaktif coupon!");
-                            }
-                        })
-                        .catch(error => console.error('Error Nonaktif data:', error));
-                    }
+                    showCancelButton: true,
+                    confirmButtonColor: "#d33",
+                    cancelButtonColor: "#3085d6",
+                    confirmButtonText: "Ya, nonaktifkan!",
+                    cancelButtonText: "Batal"
                 });
+
+                if (!result.isConfirmed) return; // Jika batal, hentikan eksekusi
+
+                try {
+                    const response = await fetch(`${getApiBaseUrl()}/api/vouchers/nonaktif/${idCoupon}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${getJwtToken()}`,
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': getCsrfToken()
+                        },
+                        body: JSON.stringify({
+                            status: 'nonaktif' // Mengirimkan status nonaktif dalam body request
+                        })
+                    });
+
+                    if (!response.ok) throw new Error("Gagal menonaktifkan kupon.");
+
+                    await Swal.fire({
+                        title: "Sukses!",
+                        text: "Kupon berhasil dinonaktifkan.",
+                        icon: "success"
+                    });
+
+                    // Ambil ulang data untuk memperbarui tabel
+                    const dataResponse = await fetch(`${getApiBaseUrl()}/api/vouchers`, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${getJwtToken()}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    const data = await dataResponse.json();
+                    populateTable(data.data);
+                } catch (error) {
+                    console.error("Error:", error);
+                    Swal.fire("Gagal!", "Terjadi kesalahan saat menonaktifkan kupon.", "error");
+                }
             });
         }
     });

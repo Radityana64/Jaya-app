@@ -117,7 +117,6 @@ class PemesananController extends Controller
             if ($validator->fails()) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Unprocessable Entity. Validation failed.',
                     'errors' => $validator->errors(),
                 ], 422); // 422 Unprocessable Entity
             }
@@ -289,6 +288,7 @@ class PemesananController extends Controller
                 'id_pemesanan' => $order->id_pemesanan,
                 'id_pelanggan' => $order->id_pelanggan,
                 'nama_pelanggan'=> $order->pelanggan->username,
+                'telepon'=>$order->pelanggan->telepon,
                 'tanggal_pemesanan' => $order->tanggal_pemesanan,
                 'alamat_pengiriman' => $order->alamat_pengiriman,
                 'total_harga' => $order->total_harga,
@@ -298,6 +298,7 @@ class PemesananController extends Controller
                     'id_pembayaran' => $order->pembayaran->id_pembayaran,
                     'metode_pembayaran' => $order->pembayaran->metode_pembayaran,
                     'status_pembayaran' => $order->pembayaran->status_pembayaran,
+                    'id_transaksi_midtrans'=>$order->pembayaran->id_transaksi_midtrans,
                     'total_pembayaran' => $order->pembayaran->total_pembayaran,
                     'tanggal_pembayaran' => $order->pembayaran->waktu_pembayaran
                 ] : null,
@@ -306,7 +307,9 @@ class PemesananController extends Controller
                     'id_pengiriman' => $order->pengiriman->id_pengiriman,
                     'kurir' => $order->pengiriman->kurir,
                     'status_pengiriman' => $order->pengiriman->status_pengiriman,
-                    'biaya_pengiriman' => $order->pengiriman->biaya_pengiriman
+                    'biaya_pengiriman' => $order->pengiriman->biaya_pengiriman,
+                    'tanggal_pengiriman'=> $order->pengiriman->tanggal_pengiriman,
+                    'tanggal_diterima'=> $order->pengiriman->tanggal_diterima
                 ] : null
             ];
 
@@ -361,7 +364,7 @@ class PemesananController extends Controller
                     'ulasan' => $detail->pemesanan->ulasan
                     ->where('id_produk_variasi', $detail->id_produk_variasi)
                     ->where('id_pemesanan', $detail->id_pemesanan)
-                    ->map(function ($ulasan) {
+                    ->map(function ($ulasan) {  
                         return [
                             'id_ulasan' => $ulasan->id_ulasan,
                             'id_rating' => $ulasan->id_rating,
@@ -418,6 +421,8 @@ class PemesananController extends Controller
             $formattedCart = [
                 'id_pemesanan' => $order->id_pemesanan,
                 'id_pelanggan' => $order->id_pelanggan,
+                'nama_pelanggan' => $order->pelanggan->username,
+                'telepon'=>$order->pelanggan->telepon,
                 'tanggal_pemesanan' => $order->tanggal_pemesanan,
                 'alamat_pengiriman' => $order->alamat_pengiriman,
                 'total_harga' => $order->total_harga,
@@ -436,7 +441,9 @@ class PemesananController extends Controller
                     'id_pengiriman' => $order->pengiriman->id_pengiriman,
                     'kurir' => $order->pengiriman->kurir,
                     'status_pengiriman' => $order->pengiriman->status_pengiriman,
-                    'biaya_pengiriman' => $order->pengiriman->biaya_pengiriman
+                    'biaya_pengiriman' => $order->pengiriman->biaya_pengiriman,
+                    'tanggal_pengiriman'=> $order->pengiriman->tanggal_pengiriman,
+                    'tanggal_diterima'=> $order->pengiriman->tanggal_diterima,
                 ] : null
             ];
 
@@ -487,6 +494,210 @@ class PemesananController extends Controller
                     }),
                 ];
             }
+            
+            $formattedPemesanan[] = $formattedCart;
+        }
+
+        return response()->json([
+            'status' => true,
+            'data' => $formattedPemesanan,
+        ], 200);
+    }
+
+    public function getPemesananPelangganId(Request $request, $idPelanggan)
+    {
+
+        // Gunakan get() untuk mengambil semua pemesanan pelanggan
+        $pemesanan = Pemesanan::with([
+            'detailPemesanan.produkVariasi.gambarVariasi', 
+            'detailPemesanan.produkVariasi.produk.gambarProduk', 
+            'detailPemesanan.produkVariasi.detailProdukVariasi.opsiVariasi.tipeVariasi', 
+            'pembayaran', 
+            'pengiriman',
+            'pelanggan',
+            'penggunaanVoucher',
+            'ulasan' => function($query) {
+                $query->with(['balasan']); // Memuat relasi balasan
+            },
+        ])
+        ->where('id_pelanggan', $idPelanggan)
+        ->where('status_pemesanan', '!=', 'keranjang')
+        ->get();
+
+        if($pemesanan->isEmpty()){
+            return response()->json([
+                'message'=>'Pelanggan Belum Pernah Memesan Produk'
+            ], 404);
+        }
+
+        $pelanggan = $pemesanan->first()->pelanggan;
+
+        $formattedPemesanan = [
+            'id_pelanggan' => $pelanggan->id_pelanggan,
+            'nama_pelanggan' => $pelanggan->username,
+            'telepon' => $pelanggan->telepon,
+            'daftar_pemesanan' => [] // Tambahkan array untuk daftar pesanan
+        ];
+
+        foreach ($pemesanan as $order) {
+            $formattedCart = [
+                'id_pemesanan' => $order->id_pemesanan,
+                'tanggal_pemesanan' => $order->tanggal_pemesanan,
+                'alamat_pengiriman' => $order->alamat_pengiriman,
+                'total_harga' => $order->total_harga,
+                'status_pemesanan' => $order->status_pemesanan,
+                'detail_pemesanan' => [],
+                'pembayaran' => $order->pembayaran ? [
+                    'id_pembayaran' => $order->pembayaran->id_pembayaran,
+                    'metode_pembayaran' => $order->pembayaran->metode_pembayaran,
+                    'status_pembayaran' => $order->pembayaran->status_pembayaran,
+                    'total_pembayaran' => $order->pembayaran->total_pembayaran,
+                    'id_transaksi_midtrans'=>$order->pembayaran->id_transaksi_midtrans,
+                    'tanggal_pembayaran' => $order->pembayaran->waktu_pembayaran
+                ] : null,
+                'potongan_harga' => $order->penggunaanVoucher ? $order->penggunaanVoucher->jumlah_diskon : null,
+                'pengiriman' => $order->pengiriman ? [
+                    'id_pengiriman' => $order->pengiriman->id_pengiriman,
+                    'kurir' => $order->pengiriman->kurir,
+                    'status_pengiriman' => $order->pengiriman->status_pengiriman,
+                    'biaya_pengiriman' => $order->pengiriman->biaya_pengiriman,
+                    'tanggal_pengiriman'=> $order->pengiriman->tanggal_pengiriman,
+                    'tanggal_diterima'=> $order->pengiriman->tanggal_diterima,
+                ] : null
+            ];
+
+            foreach ($order->detailPemesanan as $detail) {
+                // Ambil gambar variasi, jika tidak ada ambil gambar produk pertama
+                $gambarVariasi = $detail->produkVariasi->gambarVariasi->first() ? 
+                    $detail->produkVariasi->gambarVariasi->first()->gambar : 
+                    $detail->produkVariasi->produk->gambarProduk->first()->gambar;
+
+                // Membuat string variasi
+                $variations = [];
+                foreach ($detail->produkVariasi->detailProdukVariasi as $produkVariasi) {
+                    $variations[] = $produkVariasi->opsiVariasi->tipeVariasi->nama_tipe . ': ' . $produkVariasi->opsiVariasi->nama_opsi;
+                }
+                $variationsString = implode(', ', $variations);
+
+                $formattedCart['detail_pemesanan'][] = [
+                    'id_detail_pemesanan' => $detail->id_detail_pemesanan,
+                    'id_produk_variasi' => $detail->id_produk_variasi,
+                    'id_pemesanan' => $detail->id_pemesanan,
+                    'jumlah' => $detail->jumlah,
+                    'sub_total_produk' => $detail->sub_total_produk,
+                    'produk_variasi' => [
+                        'nama_produk' => $detail->produkVariasi->produk->nama_produk,
+                        'id_produk_variasi' => $detail->produkVariasi->id_produk_variasi,
+                        'id_produk' => $detail->produkVariasi->id_produk,
+                        'stok' => $detail->produkVariasi->stok,
+                        'berat' => $detail->produkVariasi->berat,
+                        'harga' => $detail->produkVariasi->harga,
+                        'gambar' => $gambarVariasi,
+                        'variasi' => $variationsString
+                    ],
+                    'ulasan' => $detail->pemesanan->ulasan
+                    ->where('id_produk_variasi', $detail->id_produk_variasi)
+                    ->where('id_pemesanan', $detail->id_pemesanan)
+                    ->map(function ($ulasan) {
+                        return [
+                            'id_ulasan' => $ulasan->id_ulasan,
+                            'id_rating' => $ulasan->id_rating,
+                            'ulasan' => $ulasan->ulasan,
+                            'balasan' => $ulasan->balasan->map(function ($balasan) {
+                                return [
+                                    'id_balasan' => $balasan->id_balasan,
+                                    'balasan' => $balasan->balasan,
+                                ];
+                            }),
+                        ];
+                    }),
+                ];
+            }
+            
+            $formattedPemesanan['daftar_pemesanan'][] = $formattedCart;
+        }
+
+        return response()->json([
+            'status' => true,
+            'data' => $formattedPemesanan,
+        ], 200);
+    }
+
+    public function getRingkasanPemesanan()
+    {
+        $pemesanan = Pemesanan::with([
+            'pelanggan',
+            'pembayaran',
+            'pengiriman',
+            'detailPemesanan.produkVariasi' => function($query) {
+                $query->with([
+                    'detailProdukVariasi.opsiVariasi.tipeVariasi'
+                ]);
+            },'penggunaanVoucher'
+        ])
+        ->where('status_pemesanan', '!=', 'keranjang')
+        ->get();
+
+        $formattedPemesanan = [];
+
+        foreach ($pemesanan as $order) {
+            $formattedCart = [
+                'id_pemesanan' => $order->id_pemesanan,
+                'id_pelanggan' => $order->id_pelanggan,
+                'nama_pelanggan'=> $order->pelanggan->username,
+                'no_telepon'=>$order->pelanggan->telepon,
+                'tanggal_pemesanan' => $order->tanggal_pemesanan,
+                'total_harga' => $order->total_harga,
+                'status_pemesanan' => $order->status_pemesanan,
+                'detail_pemesanan' => [],
+                'pembayaran' => $order->pembayaran ? [
+                    'id_pembayaran' => $order->pembayaran->id_pembayaran,
+                    'status_pembayaran' => $order->pembayaran->status_pembayaran,
+                    'total_pembayaran' => $order->pembayaran->total_pembayaran,
+                    'tanggal_pembayaran' => $order->pembayaran->waktu_pembayaran
+                ] : null,
+                'potongan_harga' => $order->penggunaanVoucher ? $order->penggunaanVoucher->jumlah_diskon : null,
+                'pengiriman' => $order->pengiriman ? [
+                    'id_pengiriman' => $order->pengiriman->id_pengiriman,
+                    'status_pengiriman' => $order->pengiriman->status_pengiriman,
+                ] : null
+            ];
+
+            foreach ($order->detailPemesanan as $detail) {
+                // Pastikan produkVariasi tidak null
+                if (!$detail->produkVariasi) {
+                    continue;
+                }
+
+                // Membuat string variasi
+                $variations = [];
+                if ($detail->produkVariasi->detailProdukVariasi) {
+                    foreach ($detail->produkVariasi->detailProdukVariasi as $produkVariasi) {
+                        // Pastikan opsiVariasi dan tipeVariasi tidak null
+                        if ($produkVariasi->opsiVariasi && 
+                            $produkVariasi->opsiVariasi->tipeVariasi) {
+                            $variations[] = $produkVariasi->opsiVariasi->tipeVariasi->nama_tipe . ': ' . $produkVariasi->opsiVariasi->nama_opsi;
+                        }
+                    }
+                }
+                $variationsString = implode(', ', $variations);
+
+                // Pastikan produk tidak null
+                $namaProduk = $detail->produkVariasi->produk ? $detail->produkVariasi->produk->nama_produk : 'Produk Tidak Dikenal';
+
+                $formattedCart['detail_pemesanan'][] = [
+                    'id_detail_pemesanan' => $detail->id_detail_pemesanan,
+                    'id_produk_variasi' => $detail->id_produk_variasi,
+                    'id_pemesanan' => $detail->id_pemesanan,
+                    'jumlah' => $detail->jumlah,
+                    'produk_variasi' => [
+                        'nama_produk' => $namaProduk,
+                        'id_produk_variasi' => $detail->produkVariasi->id_produk_variasi,
+                        'id_produk' => $detail->produkVariasi->id_produk,
+                        'variasi' => $variationsString
+                    ],
+                ];
+            }
 
             $formattedPemesanan[] = $formattedCart;
         }
@@ -495,5 +706,59 @@ class PemesananController extends Controller
             'status' => true,
             'data' => $formattedPemesanan,
         ], 200);
+    }
+
+    public function PembatalanPesanan($id_pemesanan)
+    {
+        // Mulai database transaction
+        DB::beginTransaction();
+
+        try {
+            // Cari pesanan berdasarkan id_pemesanan dan pastikan status pengiriman bukan "Diterima"
+            $pemesanan = Pemesanan::where('id_pemesanan', $id_pemesanan)
+                ->whereHas('pengiriman', function($query) {
+                    $query->where('status_pengiriman', '!=', 'Diterima');
+                })
+                ->first();
+
+            // Jika pesanan tidak ditemukan atau sudah diterima
+            if (!$pemesanan) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Pesanan tidak ditemukan atau sudah diterima.'
+                ], 404);
+            }
+
+            // Kembalikan stok produk
+            foreach ($pemesanan->detailPemesanan as $detail) {
+                $produk = ProdukVariasi::find($detail->id_produk_variasi);
+                if ($produk) {
+                    $produk->stok += $detail->jumlah;
+                    $produk->save();
+                }
+            }
+
+            // Batalkan pesanan
+            $pemesanan->status_pemesanan = 'Pesanan_Dibatalkan';
+            $pemesanan->save();
+
+            // Commit transaction jika semua operasi berhasil
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Pesanan berhasil dibatalkan dan stok dikembalikan.'
+            ]);
+
+        } catch (\Exception $e) {
+            // Rollback transaction jika terjadi kesalahan
+            DB::rollBack();
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Terjadi kesalahan saat membatalkan pesanan.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

@@ -28,4 +28,25 @@ class Voucher extends Model
     public function voucherPelanggan(){
         return $this->hasMany(VoucherPelanggan::class, 'id_voucher');
     }
+
+    public static function updateAllStatuses()
+    {
+        $now = now();
+
+        // Kadaluarsa
+        static::where('tanggal_akhir', '<', $now)
+            ->where('status', '!=', 'kadaluarsa')
+            ->update(['status' => 'kadaluarsa']);
+
+        // Nonaktif
+        static::where('tanggal_mulai', '>', $now)
+            ->where('status', '!=', 'nonaktif')
+            ->update(['status' => 'nonaktif']);
+
+        // Aktif
+        // static::where('tanggal_mulai', '<=', $now)
+        //     ->where('tanggal_akhir', '>=', $now)
+        //     ->where('status', '!=', 'aktif')
+        //     ->update(['status' => 'aktif']);
+    }
 }

@@ -107,20 +107,21 @@ class UlasanController extends Controller
 
     public function getUlasanProduk($id_produk)
     {
-        $produkExists = DB::table('tb_produk')
+        $produk = DB::table('tb_produk')
+            ->select('id_produk', 'nama_produk')
             ->where('id_produk', $id_produk)
-            ->exists();
+            ->first();
 
-        if (!$produkExists) {
+        if (!$produk) {
             return response()->json([
                 'status' => false,
                 'message' => 'Produk tidak ditemukan'
             ], 404);
         }
+
         $ulasan = DB::table('tb_ulasan as u')
             ->select([
                 'u.id_ulasan',
-                'r.id_rating',
                 'r.rating',
                 'u.ulasan',
                 'u.tanggal_dibuat',
@@ -128,16 +129,11 @@ class UlasanController extends Controller
                 'pv.id_produk_variasi',
                 'pv.harga',
                 'pv.stok',
-                'p.id_produk',
-                'p.nama_produk',
-                'p.deskripsi',
                 'b.id_balasan',
                 'b.balasan',
-                'b.tanggal_dibuat as tanggal_dibalas',
                 DB::raw('GROUP_CONCAT(DISTINCT CONCAT(tv.nama_tipe, ": ", ov.nama_opsi) SEPARATOR ", ") as variasi_info')
             ])
             ->join('tb_produk_variasi as pv', 'u.id_produk_variasi', '=', 'pv.id_produk_variasi')
-            ->join('tb_produk as p', 'pv.id_produk', '=', 'p.id_produk')
             ->join('tb_rating as r', 'u.id_rating', '=', 'r.id_rating')
             ->join('tb_pemesanan as pm', 'u.id_pemesanan', '=', 'pm.id_pemesanan')
             ->join('tb_pelanggan as pl', 'pm.id_pelanggan', '=', 'pl.id_pelanggan')
@@ -145,23 +141,11 @@ class UlasanController extends Controller
             ->leftJoin('tb_detail_produk_variasi as dpv', 'pv.id_produk_variasi', '=', 'dpv.id_produk_variasi')
             ->leftJoin('tb_opsi_variasi as ov', 'dpv.id_opsi_variasi', '=', 'ov.id_opsi_variasi')
             ->leftJoin('tb_tipe_variasi as tv', 'ov.id_tipe_variasi', '=', 'tv.id_tipe_variasi')
-            ->where('p.id_produk', $id_produk)
+            ->where('pv.id_produk', $id_produk)
             ->groupBy([
-                'u.id_ulasan',
-                'r.id_rating',
-                'r.rating',
-                'u.ulasan', 
-                'u.tanggal_dibuat',
-                'pl.username',
-                'pv.id_produk_variasi',
-                'pv.harga',
-                'pv.stok',
-                'p.id_produk',
-                'p.nama_produk',
-                'p.deskripsi',
-                'b.id_balasan',
-                'b.balasan',
-                'b.tanggal_dibuat'
+                'u.id_ulasan', 'r.rating', 'u.ulasan', 'u.tanggal_dibuat',
+                'pl.username', 'pv.id_produk_variasi', 'pv.harga', 'pv.stok',
+                'b.id_balasan', 'b.balasan'
             ])
             ->orderBy('u.tanggal_dibuat', 'desc')
             ->get()
@@ -176,38 +160,40 @@ class UlasanController extends Controller
                     'produk_variasi' => [
                         'id_produk_variasi' => $item->id_produk_variasi,
                         'harga' => $item->harga,
-                        'stok' => $item->stok,
-                        'produk' => [
-                            'id_produk' => $item->id_produk,
-                            'nama_produk' => $item->nama_produk,
-                            'deskripsi' => $item->deskripsi
-                        ]
+                        'stok' => $item->stok
                     ],
                     'balasan' => $item->id_balasan ? [
                         'id_balasan' => $item->id_balasan,
-                        'balasan' => $item->balasan,
-                        'tanggal_dibalas' => $item->tanggal_dibalas
+                        'balasan' => $item->balasan,                        
                     ] : null
                 ];
             });
-        
-        if($ulasan->isEmpty()){
-            return response()->json([
-                "message"=>'Produk Belum Memiliki Ulasan'
-            ],404);
-        }
 
         $ratingStats = $this->calculateRatingStats($id_produk);
-    
+
+        if ($ulasan->isEmpty()) {
+            return response()->json([
+                "status" => true,
+                "data" => [
+                    "id_produk" => $produk->id_produk,
+                    "nama_produk" => $produk->nama_produk,
+                    'rating_summary' => $ratingStats,
+                    "ringkasan_ulasan" => []
+                ],
+                "message" => 'Produk belum memiliki ulasan'
+            ], 200);
+        }
+
         return response()->json([
             'status' => true,
             'data' => [
+                'id_produk' => $produk->id_produk,
+                'nama_produk' => $produk->nama_produk,
                 'rating_summary' => $ratingStats,
-                'reviews' => $ulasan
+                'ringkasan_ulasan' => $ulasan
             ]
         ]);
     }
-
     private function calculateRatingStats($id_produk)
     {
         // Menggunakan Query Builder untuk menghitung rating berdasarkan produk

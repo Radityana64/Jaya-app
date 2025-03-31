@@ -10,8 +10,8 @@
                 <div class="col-12">
                     <div class="bread-inner">
                         <ul class="bread-list">
-                            <li><a href="index1.html">Home<i class="ti-arrow-right"></i></a></li>
-                            <li class="active"><a href="blog-single.html">Shop Grid</a></li>
+                            <li><a href="{{route ('index')}}">Beranda<i class="ti-arrow-right"></i></a></li>
+                            <li class="active"><a href="">Etalase Produk</a></li>
                         </ul>
                     </div>
                 </div>
@@ -24,11 +24,12 @@
     <section class="product-area shop-sidebar shop section">
         <div class="container">
             <div class="row">
+                <!-- Sidebar -->
                 <div class="col-lg-3 col-md-4 col-12">
-                    <div class="shop-sidebar">
+                    <div class="shop-sidebar" style="position: sticky; top: 20px;">
                         <!-- Single Widget -->
                         <div class="single-widget category">
-                            <h3 class="title">Categories</h3>
+                            <h3 class="title">Kategori</h3>
                             <ul class="categor-list" id="categoryList">
                                 <!-- Categories will be loaded here -->
                             </ul>
@@ -36,18 +37,18 @@
                         <!--/ End Single Widget -->
                         <!-- Shop By Price -->
                         <div class="single-widget range">
-                            <h3 class="title">Shop by Price</h3>
+                            <h3 class="title">Berdasarkan Harga</h3>
                             <div class="price-filter">
                                 <div class="price-filter-inner">
                                     <div id="slider-range"></div>
                                     <div class="product_filter">
                                         <button type="button" class="filter_button" onclick="filterByPrice()">Filter</button>
                                         <div class="label-input">
-                                            <span>Min Price:</span>
+                                            <span>Harga Minimum:</span>
                                             <input type="number" id="minPrice" placeholder="Min" />
                                         </div>
                                         <div class="label-input">
-                                            <span>Max Price:</span>
+                                            <span>Harga Maksimal:</span>
                                             <input type="number" id="maxPrice" placeholder="Max" />
                                         </div>
                                     </div>
@@ -57,6 +58,7 @@
                         <!--/ End Shop By Price -->
                     </div>
                 </div>
+                <!-- Main Content -->
                 <div class="col-lg-9 col-md-8 col-12">
                     <div class="row">
                         <div class="col-12">
@@ -67,11 +69,11 @@
                                         <button type="button" class="filter_button" onclick="clearFilters()">Semua Produk</button>                                   
                                     </div>
                                     <div class="single-shorter">
-                                        <label>Sort By :</label>
+                                        <label>Urutkan Berdasarkan :</label>
                                         <select id="sortBy" onchange="sortProducts(this.value)">
                                             <option value="">Default</option>
-                                            <option value="name">Name</option>
-                                            <option value="price">Price</option>
+                                            <option value="name">Nama Produk</option>
+                                            <option value="price">Harga Produk</option>
                                         </select>
                                     </div>
                                 </div>
@@ -81,11 +83,6 @@
                     </div>
                     <div class="row" id="productGrid">
                         <!-- Products will be loaded here -->
-                    </div>
-                    <div class="pagination" id="pagination">
-                        <button onclick="changePage(-1)" id="prevPage" disabled>Prev</button>
-                        <span id="pageInfo"></span>
-                        <button onclick="changePage(1)" id="nextPage">Next</button>
                     </div>
                 </div>
             </div>
@@ -104,27 +101,46 @@
 
     .filter_button {
         text-align: center;
-        background: #F7941D;
+        background: #797979;
         padding: 8px 16px;
         margin-top: 10px;
         color: white;
-        border: none;
-        border-radius: 4px;
         cursor: pointer;
     }
+
     .product-img img {
         width: 100%;
-        height: 250px;
+        height: 100%; /* Sesuai rasio 3:4 */
         object-fit: cover;
     }
-    .pagination {
-        margin-top: 20px;
-        text-align: center;
+
+    .product-card {
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        margin-bottom: 10px;
     }
-    .pagination button {
-        padding: 10px 15px;
-        margin: 0 5px;
-        cursor: pointer;
+
+    .product-content {
+        padding: 0 15px 20px 15px; 
+        text-align: left; 
+    }
+
+    .product-name {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+
+    .current-price {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #797979;
+    }
+
+    .shop-sidebar {
+        position: sticky;
+        top: 20px; /* Jarak dari atas */
     }
 </style>
 @endpush
@@ -132,16 +148,18 @@
 @push('scripts')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-ui/1.12.1/jquery-ui.min.js"></script>
 <script>
+function getApiBaseUrl() {
+    return document.querySelector('meta[name="api-base-url"]').getAttribute('content');
+}
+
 let allProducts = [];
 let categories = [];
 let priceRange = { min: 0, max: 1000000 };
-let currentPage = 1;
-const productsPerPage = 15;
 
 // Fetch products from API
 async function fetchProducts(searchTerm = '', categoryTerm = '') {
     try {
-        const response = await fetch('http://127.0.0.1:8000/api/produk');
+        const response = await fetch(`${getApiBaseUrl()}/api/produk`);
         const responseData = await response.json();
         
         if (responseData.status === 'success' && Array.isArray(responseData.data)) {
@@ -190,7 +208,7 @@ async function fetchProducts(searchTerm = '', categoryTerm = '') {
 // Fetch categories from API
 async function fetchCategories() {
     try {
-        const response = await fetch('http://127.0.0.1:8000/api/kategori');
+        const response = await fetch(`${getApiBaseUrl()}/api/kategori`);
         const data = await response.json();
         categories = data.data;
         displayCategories(data.data);
@@ -209,47 +227,39 @@ function displayProducts(products) {
         return;
     }
 
-    // Calculate total pages
-    const totalPages = Math.ceil(products.length / productsPerPage);
-    const startIndex = (currentPage - 1) * productsPerPage;
-    const endIndex = Math.min(startIndex + productsPerPage, products.length);
-    
-    // Display products for the current page
-    for (let i = startIndex; i < endIndex; i++) {
-        const product = products[i];
+    products.forEach(product => {
         let imageUrl = 'placeholder.jpg';
         if (product.gambar_produk && product.gambar_produk.length > 0 && product.gambar_produk[0].gambar) {
             imageUrl = product.gambar_produk[0].gambar;
         }
 
         const productHtml = `
-            <div class="col-lg-4 col-md-6 col-12">
-                <div class="single-product">
+            <div class="col-lg-3 col-md-6 col-12">
+                <div class="single-product product-card">
                     <div class="product-img">
-                        <a href="/produk-detail/${product.id_produk}">
-                            <img class="default-img" src="${imageUrl}" alt="${product.nama_produk}">
-                            <img class="hover-img" src="${imageUrl}" alt="${product.nama_produk}">
+                        <a href="/produk-detail/${product.id_produk}" class="product-link">
+                            <img class="default-img card-img-top" 
+                                src="${imageUrl}" 
+                                alt="${product.nama_produk}">
                         </a>
-                        <div class="button-head">
-                            <div class="product-action-2">
-                                ${product.deskripsi}
-                            </div>
-                        </div>
                     </div>
                     <div class="product-content">
-                        <h3><a href="product-detail/${product.id_produk}">${product.nama_produk}</a></h3>
-                        <div class="product-price">
-                            <span>Rp ${product.harga.toLocaleString()}</span>
+                        <h3 class="product-name mb-2">
+                            <a href="/produk-detail/${product.id_produk}" class="text-dark" style="text-decoration: none;">
+                                ${product.nama_produk}
+                            </a>
+                        </h3>
+                        <div class="product-price-container">
+                            <span class="current-price" style="font-size: 1.2rem; font-weight: 700;">
+                                Rp ${product.harga.toLocaleString()}
+                            </span>
                         </div>
                     </div>
                 </div>
             </div>
         `;
         productGrid.innerHTML += productHtml;
-    }
-
-    // Update pagination
-    updatePagination(totalPages);
+    });
 }
 
 // Display categories
@@ -302,8 +312,6 @@ function filterByPrice() {
     const filtered = allProducts.filter(product => 
         product.harga >= minPrice && product.harga <= maxPrice
     );
-
-    currentPage = 1; // Reset to first page when filtering
     displayProducts(filtered);
 }
 

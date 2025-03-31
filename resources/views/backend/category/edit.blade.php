@@ -54,12 +54,7 @@
 </div>
 @endsection
 
-@push('styles')
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-@endpush
-
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
     function getCsrfToken() {
@@ -68,6 +63,9 @@
 
     function getJwtToken() {
         return document.querySelector('meta[name="api-token"]').getAttribute('content');
+    }
+    function getApiBaseUrl(){
+        return document.querySelector('meta[name="api-base-url"]').getAttribute('content');
     }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -116,7 +114,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         loadKategoriData() {
-            fetch(`/api/kategori/${this.kategoriId}`)
+            fetch(`${getApiBaseUrl()}/api/kategori/${this.kategoriId}`)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('Gagal memuat data kategori');
@@ -298,7 +296,7 @@ document.addEventListener('DOMContentLoaded', function() {
             formData.append('_method', 'PUT');
 
             // Kirim data ke backend
-            fetch(`/api/kategori/update/${this.kategoriId}`, {
+            fetch(`${getApiBaseUrl()}/api/kategori/update/${this.kategoriId}`, {
                 method: 'POST', // Ganti ke POST jika backend tidak mendukung PUT dengan FormData
                 body: formData,
                 headers: {

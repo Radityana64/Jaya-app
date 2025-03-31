@@ -390,6 +390,8 @@ class VoucherController extends Controller
         $user = $request->user();
         $pelanggan = Pelanggan::where('id_user', $user->id_user)->first();
 
+        Voucher::updateAllStatuses();
+
         $activeVouchers = VoucherPelanggan::whereHas('voucher', function($query) use ($pelanggan){
             $query->where('id_pelanggan', $pelanggan->id_pelanggan)
                 ->where('status', 'aktif')
@@ -424,6 +426,8 @@ class VoucherController extends Controller
             ], 404);
         }
 
+        Voucher::updateAllStatuses();
+
         // Ambil voucher dengan informasi pelanggan yang memiliki voucher
         $voucherDetail = Voucher::with(['voucherPelanggan' => function($query) {
             $query->with('pelanggan');
@@ -437,7 +441,7 @@ class VoucherController extends Controller
                 'id_voucher_pelanggan' => $item->id_voucher_pelanggan,
                 'pelanggan' => [
                     'id_pelanggan' => $item->pelanggan->id_pelanggan,
-                    'nama_pelanggan' => $item->pelanggan->nama_pelanggan
+                    'nama_pelanggan' => $item->pelanggan->username
                 ],
                 'status_voucher_pelanggan' => $item->status,
                 'tanggal_dibuat' => $item->tanggal_dibuat,
@@ -466,6 +470,8 @@ class VoucherController extends Controller
     {
         try {
             $vouchers = Voucher::all();
+
+            Voucher::updateAllStatuses();
 
             return response()->json([
                 'success' => true,
@@ -532,5 +538,7 @@ class VoucherController extends Controller
             'message' => 'Voucher berhasil dinonaktifkan'
         ]);
     }
+
+    
 
 }

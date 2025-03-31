@@ -22,6 +22,7 @@
                         <th>Nama Lengkap</th>
                         <th>Email</th>
                         <th>No HP</th>
+                        <th>Status</th>
                         <th>Aksi</th>
                     </tr>
                 </thead>
@@ -36,7 +37,6 @@
 
 @push('styles')
 <link href="{{asset('backend/vendor/datatables/dataTables.bootstrap4.min.css')}}" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.css" />
 <style>
     div.dataTables_wrapper div.dataTables_paginate{
         display: none;
@@ -47,7 +47,6 @@
 @push('scripts')
 <script src="{{asset('backend/vendor/datatables/jquery.dataTables.min.js')}}"></script>
 <script src="{{asset('backend/vendor/datatables/dataTables.bootstrap4.min.js')}}"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/2.1.2/sweetalert.min.js"></script>
 
 <script>
     function getCsrfToken() {
@@ -57,13 +56,16 @@
     function getJwtToken() {
         return document.querySelector('meta[name="api-token"]').getAttribute('content');
     }
+    function getApiBaseUrl(){
+        return document.querySelector('meta[name="api-base-url"]').getAttribute('content');
+    }
 
     let table;
     let pelangganData = []; // Untuk menyimpan data pelanggan
 
     document.addEventListener('DOMContentLoaded', function() {
         // Ambil data dari API dengan JWT token
-        fetch('http://127.0.0.1:8000/api/pelanggan/master', {
+        fetch(`${getApiBaseUrl()}/api/pelanggan/master`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -83,8 +85,14 @@
         })
         .catch(error => {
             console.error('Error fetching data:', error);
-            swal("Error", "Gagal mengambil data pelanggan", "error");
+            Swal.fire({
+                title: "Error!",
+                text: `Gagal mengambil data pelanggan: ${error.message || "Terjadi kesalahan"}`,
+                icon: "error",
+                confirmButtonText: "OK"
+            });
         });
+
 
         function populateTable(pelanggan) {
             const tableBody = document.getElementById('pelanggan-table-body');
@@ -94,6 +102,15 @@
             let counter = 1;
 
             pelanggan.forEach((item) => {
+                // Tentukan tombol berdasarkan status
+                const statusButton = item.status === 'aktif' 
+                    ? `<button class="btn btn-danger btn-sm nonaktifBtn" data-id="${item.id_pelanggan}" style="height:30px; width:30px;border-radius:50%" data-toggle="tooltip" title="Nonaktif">
+                        <i class="fas fa-ban"></i>
+                    </button>`
+                    : `<button class="btn btn-success btn-sm aktifBtn" data-id="${item.id_pelanggan}" style="height:30px; width:30px;border-radius:50%" data-toggle="tooltip" title="Aktifkan">
+                        <i class="fas fa-check"></i>
+                    </button>`;
+
                 rows += `
                     <tr>
                         <td>${counter++}</td>
@@ -102,9 +119,12 @@
                         <td>${item.user ? item.user.nama_lengkap : '-'}</td>
                         <td>${item.user ? item.user.email : '-'}</td>
                         <td>${item.telepon}</td>
+                        <td>${item.status}</td>
                         <td>
-                            <a href="#" class="btn btn-primary btn-sm" style="height:30px; width:30px;border-radius:50%" data-toggle="tooltip" title="Edit"><i class="fas fa-edit"></i></a>
-                            <button class="btn btn-danger btn-sm dltBtn" data-id="${item.id_pelanggan}" style="height:30px; width:30px;border-radius:50%" data-toggle="tooltip" title="Hapus"><i class="fas fa-trash-alt"></i></button>
+                            <a href="/pelanggan/detail-pesanan/${item.id_pelanggan}" class="btn btn-primary btn-sm" data-id="${item.id_pelanggan}" style="height:30px; width:30px;border-radius:50%" data-toggle="tooltip" title="Detail">
+                                <i class="fas fa-info-circle"></i>
+                            </a>
+                            ${statusButton}
                         </td>
                     </tr>
                 `;
@@ -122,49 +142,143 @@
                 "columnDefs": [
                     {
                         "orderable": false,
-                        "targets": [6] // Kolom aksi
+                        "targets": [7] // Kolom aksi
                     }
                 ]
             });
 
-            // Pasang event listener untuk tombol hapus
-            attachDeleteEvent();
+            // Pasang event listener untuk tombol status
+            attachStatusEvent();
         }
 
-        function attachDeleteEvent() {
-            $('.dltBtn').on('click', function() {
-                const id = $(this).data('id');
-                swal({
-                    title: "Apakah Anda yakin?",
-                    text: "Setelah dihapus, Anda tidak akan dapat memulihkan data ini!",
-                    icon: "warning",
-                    buttons: true,
-                    dangerMode: true,
-                })
-                .then((willDelete) => {
-                    if (willDelete) {
-                        // Lakukan aksi hapus
-                        fetch(`http://127.0.0.1:8000/api/pelanggan/${id}`, {
-                            method: 'DELETE',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': getCsrfToken(),
-                                'Authorization': `Bearer ${getJwtToken()}`
-                            }
-                        })
-                        .then(response => {
-                            if (response.ok) {
-                                swal("Data pelanggan berhasil dihapus!", {
-                                    icon: "success",
-                                });
-                                // Perbarui tabel
-                                populateTable(pelangganData.filter(item => item.id_pelanggan !== id));
-                            } else {
-                                swal("Gagal menghapus pelanggan!");
-                            }
-                        })
-                        .catch(error => console.error('Error menghapus data:', error));
+        function attachStatusEvent() {
+            // Event untuk tombol Nonaktif
+            document.querySelectorAll('.nonaktifBtn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const id = this.getAttribute('data-id');
+
+                    if (!id) {
+                        Swal.fire({
+                            title: "Kesalahan!",
+                            text: "ID pelanggan tidak ditemukan.",
+                            icon: "error",
+                            confirmButtonText: "OK"
+                        });
+                        return;
                     }
+
+                    Swal.fire({
+                        title: "Apakah Anda yakin?",
+                        text: "Pelanggan akan dinonaktifkan!",
+                        icon: "warning",
+                        showCancelButton: true,
+                        confirmButtonColor: "#d33",
+                        cancelButtonColor: "#3085d6",
+                        confirmButtonText: "Ya, Nonaktifkan!",
+                        cancelButtonText: "Batal"
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            fetch(`${getApiBaseUrl()}/api/pelanggan/nonaktif/${id}`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': getCsrfToken(),
+                                    'Authorization': `Bearer ${getJwtToken()}`
+                                }
+                            })
+                            .then(response => {
+                                if (response.ok) {
+                                    Swal.fire({
+                                        title: "Berhasil!",
+                                        text: "Pelanggan berhasil dinonaktifkan.",
+                                        icon: "success",
+                                        confirmButtonText: "OK"
+                                    }).then(() => location.reload());
+                                } else {
+                                    Swal.fire({
+                                        title: "Gagal!",
+                                        text: "Gagal menonaktifkan pelanggan.",
+                                        icon: "error",
+                                        confirmButtonText: "OK"
+                                    });
+                                }
+                            })
+                            .catch(error => {
+                                console.error("Error menonaktifkan pelanggan:", error);
+                                Swal.fire({
+                                    title: "Kesalahan!",
+                                    text: "Terjadi kesalahan saat menghubungi server.",
+                                    icon: "error",
+                                    confirmButtonText: "OK"
+                                });
+                            });
+                        }
+                    });
+                });
+            });
+
+            // Event untuk tombol Aktif
+            document.querySelectorAll('.aktifBtn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const id = this.getAttribute('data-id');
+
+                    if (!id) {
+                        Swal.fire({
+                            title: "Kesalahan!",
+                            text: "ID pelanggan tidak ditemukan.",
+                            icon: "error",
+                            confirmButtonText: "OK"
+                        });
+                        return;
+                    }
+
+                    Swal.fire({
+                        title: "Apakah Anda yakin?",
+                        text: "Pelanggan akan diaktifkan!",
+                        icon: "warning",
+                        showCancelButton: true,
+                        confirmButtonColor: "#28a745", // Warna hijau untuk aktif
+                        cancelButtonColor: "#3085d6",
+                        confirmButtonText: "Ya, Aktifkan!",
+                        cancelButtonText: "Batal"
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            fetch(`${getApiBaseUrl()}/api/pelanggan/aktif/${id}`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': getCsrfToken(),
+                                    'Authorization': `Bearer ${getJwtToken()}`
+                                }
+                            })
+                            .then(response => {
+                                if (response.ok) {
+                                    Swal.fire({
+                                        title: "Berhasil!",
+                                        text: "Pelanggan berhasil diaktifkan.",
+                                        icon: "success",
+                                        confirmButtonText: "OK"
+                                    }).then(() => location.reload());
+                                } else {
+                                    Swal.fire({
+                                        title: "Gagal!",
+                                        text: "Gagal mengaktifkan pelanggan.",
+                                        icon: "error",
+                                        confirmButtonText: "OK"
+                                    });
+                                }
+                            })
+                            .catch(error => {
+                                console.error("Error mengaktifkan pelanggan:", error);
+                                Swal.fire({
+                                    title: "Kesalahan!",
+                                    text: "Terjadi kesalahan saat menghubungi server.",
+                                    icon: "error",
+                                    confirmButtonText: "OK"
+                                });
+                            });
+                        }
+                    });
                 });
             });
         }

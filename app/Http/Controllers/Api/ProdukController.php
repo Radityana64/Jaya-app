@@ -587,20 +587,33 @@ class ProdukController extends Controller
 
     private function updateProductImages(Produk $produk, Request $request)
     {
-        // Hapus gambar lama jika ada gambar baru
-        if ($request->hasFile('gambar_produk')) {
-            // Hapus gambar lama dari Cloudinary
-            foreach ($produk->gambarProduk as $gambarLama) {
-                if ($gambarLama->public_id) {
-                    Cloudinary::destroy($gambarLama->public_id);
-                }
-            }
-            
-            // Hapus record gambar lama dari database
-            $produk->gambarProduk()->delete();
+        if (!$request->has('gambar_produk') && !$request->has('existing_image_ids')) return;
 
-            // Upload gambar baru
-            $this->uploadProductImages($produk, $request->file('gambar_produk'));
+        $images = $request->file('gambar_produk');
+        // Ensure existingImageIds is always an array
+        $existingImageIds = (array) $request->input('existing_image_ids', []);
+        $currentImages = $produk->gambarProduk->pluck('id_gambar')->toArray();
+        $imagesToDelete = array_diff($currentImages, $existingImageIds);
+
+        // Delete removed images
+        if (!empty($imagesToDelete)) {
+            try {
+                foreach ($produk->gambarProduk as $gambar) {
+                    if (in_array($gambar->id_gambar, $imagesToDelete)) {
+                        if ($gambar->public_id) {
+                            Cloudinary::destroy($gambar->public_id);
+                        }
+                        $gambar->delete();
+                    }
+                }
+            } catch (\Exception $e) {
+                throw new \Exception('Failed to delete images: ' . $e->getMessage());
+            }
+        }
+
+        // Upload new images
+        if ($images && is_array($images)) {
+            $this->uploadProductImages($produk, $request);
         }
     }
 
@@ -648,7 +661,7 @@ class ProdukController extends Controller
 
         foreach ($newVariations as $variasiData) {
             // Buat variasi baru
-            $variasi = $produk->variasi()->create([
+            $variasi = $produk->produkVariasi()->create([
                 'stok' => $variasiData['stok'],
                 'berat' => $variasiData['berat'],
                 'hpp' => $variasiData['hpp'],

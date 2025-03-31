@@ -9,6 +9,7 @@ use Tymon\JWTAuth\Exceptions\TokenExpiredException;
 use Tymon\JWTAuth\Exceptions\TokenInvalidException;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Facades\JWTAuth;
+use App\Models\Pelanggan;
 
 class AuthMiddleware
 {
@@ -18,14 +19,25 @@ class AuthMiddleware
             // Authenticate user and get the authenticated user
             $user = JWTAuth::parseToken()->authenticate();
 
-            // Check if user exists
+            // Cek apakah user ditemukan
             if (!$user) {
                 return response()->json(['error' => 'User not found'], 404);
             }
 
-            // Check if user has the required role
+            if ($user->role === 'pelanggan') {
+                $pelanggan = Pelanggan::where('id_user', $user->id_user)->first();
+                
+                if ($pelanggan && $pelanggan->status !== 'aktif') {
+                    // 🔥 Invalidasi token pelanggan ini
+                    JWTAuth::invalidate(JWTAuth::getToken());
+
+                    return response()->json([
+                        'error' => 'Akun Anda telah dinonaktifkan oleh admin. Silakan login kembali.'
+                    ], 403);
+                }
+            }
             if (!empty($roles) && !in_array($user->role, $roles)) {
-                return response()->json(['error' => 'Unauthorized access'], 403);
+                return response()->json(['error' => 'Forbidden Unauthorized access'], 403);
             }
 
         } catch (TokenExpiredException $e) {
@@ -36,7 +48,7 @@ class AuthMiddleware
             return response()->json(['error' => 'Authorization Token not found'], 401);
         }
 
-        // Add user to the request
+        // Tambahkan user ke request
         $request->merge(['user' => $user]);
 
         return $next($request);

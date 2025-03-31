@@ -36,8 +36,13 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 //Auth
 Route::post('pelanggan/register', [AuthController::class, 'register']);
 Route::post('user/login', [AuthController::class, 'login']);
-Route::get('pelanggan/master', [AuthController::class, 'getMasterPelanggan'])->middleware('auth.jwt', 'jwt.role:admin,pemilik_toko');
 
+Route::middleware(['auth.jwt', 'jwt.role:admin,pemilik_toko'])->group(function(){
+    Route::get('pelanggan/master', [AuthController::class, 'getMasterPelanggan']);
+    Route::get('pelanggan/data/{id_pelanggan}', [AuthController::class, 'pelangganById']);
+    Route::put('pelanggan/nonaktif/{id_pelanggan}', [AuthController::class, 'pelangganNonaktif']);
+    Route::put('pelanggan/aktif/{id_pelanggan}', [AuthController::class, 'pelangganAktif']);
+});
 Route::middleware(['auth.jwt'])->group(function(){
     Route::get('user/profil', [AuthController::class, 'getUser']);
     Route::put('pelanggan/update', [AuthController::class, 'updateProfil']);
@@ -50,6 +55,7 @@ Route::prefix('password')->group(function () {
     Route::get('validate/{token}', [ResetPasswordController::class, 'validateToken']);
     Route::put('reset/{resetToken}', [ResetPasswordController::class, 'resetPassword']);
 });
+
 //Alamat Raja Ongkir
 Route::get('/alamat/ambil-data', [AlamatController::class, 'ambilData']);
 Route::get('/alamat/provinsi', [AlamatController::class, 'ambilProvinsi']);
@@ -75,7 +81,7 @@ Route::get('produk/{id}', [ProdukController::class, 'show']);
 Route::get('/variasi-produk', [ProdukController::class, 'showVariation']);    
 
 //Produk
-Route::middleware(['auth.jwt', 'jwt.role:admin'])->group(function(){
+Route::middleware(['auth.jwt', 'jwt.role:admin,pemilik_toko'])->group(function(){
     Route::post('/kategori/create', [KategoriController::class, 'createKategori']);
     Route::put('/kategori/update/{id}', [KategoriController::class, 'updateKategori']);
     Route::put('/kategori/status/{id_kategori}', [KategoriController::class, 'updateStatus']);
@@ -88,19 +94,28 @@ Route::middleware(['auth.jwt', 'jwt.role:admin'])->group(function(){
 });
 
 //Voucher
-Route::middleware(['auth.jwt'])->group(function(){
+
+    // Admin & Pemilik Toko
+Route::middleware(['auth.jwt', 'jwt.role:admin,pemilik_toko'])->group(function () {
     Route::prefix('vouchers')->group(function () {
-        Route::post('/', [VoucherController::class, 'store'])->middleware('jwt.role:admin');
-        Route::put('/{id}', [VoucherController::class, 'update'])->middleware('jwt.role:admin');
-        Route::put('/nonaktif/{id}', [VoucherController::class, 'nonaktif'])->middleware('jwt.role:admin');
-        Route::post('/distribusi', [VoucherController::class, 'distribusiVoucher'])->middleware('jwt.role:admin');
-        Route::post('/gunakan', [VoucherController::class, 'gunakanVoucher'])->middleware('jwt.role:pelanggan');
-        Route::get('/active', [VoucherController::class, 'getActiveVouchersForCustomer'])->middleware('jwt.role:pelanggan');
-        Route::get('/pelanggan/{id_voucher}', [VoucherController::class, 'getVoucherById'])->middleware('jwt.role:admin');
-        Route::get('/', [VoucherController::class, 'getAllVouchers'])->middleware('jwt.role:admin');
-        // Route::get('/active/all', [VoucherController::class, 'getAllActiveVouchers']);
+        Route::post('/', [VoucherController::class, 'store']);
+        Route::put('/{id}', [VoucherController::class, 'update']);
+        Route::put('/nonaktif/{id}', [VoucherController::class, 'nonaktif']);
+        Route::post('/distribusi', [VoucherController::class, 'distribusiVoucher']);
+        Route::get('/{id_voucher}', [VoucherController::class, 'getVoucherById']);
+        Route::get('/', [VoucherController::class, 'getAllVouchers']);
     });
 });
+
+    // Pelanggan
+Route::middleware(['auth.jwt', 'jwt.role:pelanggan'])->group(function () {
+    Route::prefix('voucher')->group(function () {
+        Route::post('/gunakan', [VoucherController::class, 'gunakanVoucher']);
+        Route::get('/active', [VoucherController::class, 'getActiveVouchersForCustomer']);
+    });
+});
+
+
 
 //Pemesanan
 Route::middleware(['auth.jwt', 'jwt.role:pelanggan'])->group(function(){
@@ -125,16 +140,18 @@ Route::middleware(['auth.jwt', 'jwt.role:pelanggan'])->group(function(){
 
 //PaymentGateway
 Route::post('payments/callback', [PembayaranController::class, 'callback']);
+
 //Ulasan
 Route::get('ulasan/get-by-produk/{id_produk}', [UlasanController::class, 'getUlasanProduk']);
 
-Route::middleware(['auth.jwt', 'jwt.role:admin'])->group(function(){
+Route::middleware(['auth.jwt', 'jwt.role:admin,pemilik_toko'])->group(function(){
     Route::put('pengiriman/dikirim/{id_pengiriman}', [PengirimanController::class, 'updateStatusDikirim']);
     Route::get('/pemesanan/data/master', [PemesananController::class, 'getPemesananMaster']);
+    Route::get('/pemesanan/data/pelanggan/{id_pelanggan}', [PemesananController::class, 'getPemesananPelangganId']);
+    Route::get('pemesanan/data/ringkasan', [PemesananController::class, 'getRingkasanPemesanan']);
     Route::post('ulasan/balasan/{id_ulasan}', [UlasanController::class, 'SimpanBalasan']);
-
-    //Laporan 
-    Route::post('/laporan/penjualan', [LaporanController::class, 'getLaporanPenjualan']);
+    Route::put('pemesanan-dibatalkan/{id_pemesanan}', [PemesananController::class, 'PembatalanPesanan']);
+    Route::post('/cancel-transaction/{transactionId}', [PembayaranController::class, 'cancelTransaction']);
 
     //Banner
     Route::post('/banner/create', [BannerController::class, 'create']);
@@ -144,5 +161,19 @@ Route::middleware(['auth.jwt', 'jwt.role:admin'])->group(function(){
 });
 Route::get('/banners/aktif', [BannerController::class, 'getActiveBanners']);
 
+Route::middleware(['auth.jwt', 'jwt.role:pemilik_toko'])->group(function(){
+    Route::get('data/admin', [AuthController::class, 'GetDataAdmin']);
+    Route::post('data/admin/create', [AuthController::class, 'CreateAdmin']);
+    Route::delete('data/admin/delete/{id_user}', [AuthController::class, 'DeleteAdmin']);
+
+    //Laporan 
+    Route::post('/laporan/penjualan', [LaporanController::class, 'getLaporanPenjualan']);
+    Route::post('/laporan/penjualan/tahunan', [LaporanController::class, 'getLaporanTahunan']);
+    Route::post('/laporan/penjualan/bulanan', [LaporanController::class, 'getLaporanBulanan']);
+});
+
+
+
 //Ekstensi + Coba Coba
 Route::post('upload-gambar', [GambarController::class, 'uploadGambar']);
+// Route::get('city', [AlamatController::class, 'getCities'])

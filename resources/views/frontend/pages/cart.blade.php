@@ -8,8 +8,8 @@
 				<div class="col-12">
 					<div class="bread-inner">
 						<ul class="bread-list">
-							<li><a href="#">Home<i class="ti-arrow-right"></i></a></li>
-							<li class="active"><a href="">Cart</a></li>
+							<li><a href="#">Beranda<i class="ti-arrow-right"></i></a></li>
+							<li class="active"><a href="">Keranjang</a></li>
 						</ul>
 					</div>
 				</div>
@@ -27,10 +27,10 @@
 					<table class="table shopping-summery">
 						<thead>
 							<tr class="main-hading">
-								<th>PRODUCT</th>
-								<th>NAME</th>
-								<th class="text-center">UNIT PRICE</th>
-								<th class="text-center">QUANTITY</th>
+								<th>PRODUK</th>
+								<th>NAMA PRODUK</th>
+								<th class="text-center">HARGA PRODUK</th>
+								<th class="text-center">JUMLAH</th>
 								<th class="text-center">TOTAL</th>
 								<th class="text-center"><i class="ti-trash remove-icon"></i></th>
 							</tr>
@@ -47,27 +47,19 @@
 					<!-- Total Amount -->
 					<div class="total-amount">
 						<div class="row">
-							<!-- <div class="col-lg-8 col-md-5 col-12">
-								<div class="left">
-									<div class="coupon">
-										<form id="coupon-form">
-											<input name="code" placeholder="Enter Your Coupon">
-											<button class="btn" type="submit">Apply</button>
-										</form>
-									</div>
-								</div>
-							</div> -->
 							<div class="col-lg-4 col-md-7 col-12">
 								<div class="right">
 									<ul>
-										<li class="order_subtotal" id="cart-subtotal">Cart Subtotal<span>$0.00</span></li>
-										<li class="last" id="order_total_price">You Pay<span>$0.00</span></li>
+										<li class="order_subtotal" id="cart-subtotal">Sub Total Produk<span>Rp 0.00</span></li>
+										<!-- <li class="last" id="order_total_price">Total B<span>Rp 0.00</span></li> -->
 									</ul>
 									<div class="button5">
-										<button id="update-cart-btn" class="btn">Update Cart</button>
-										<a href="{{route('checkout')}}" class="btn">Checkout</a>
-										<a href="{{route('produk.grids')}}" class="btn">Continue shopping</a>
-									</div>
+                                        <button id="update-cart-btn" class="btn">Update Keranjang</button>
+                                        <button class="btn checkout-button" onclick="window.location.href='{{ route('checkout') }}'">Checkout</button>
+                                        <span id="checkout-warning" style="color: red; display: none;">Sesuaikan jumlah produk lalu Klik "Update Cart"!!! 
+                                        </span>
+                                        <a href="{{route('produk.grids')}}" class="btn">Lanjut Belanja</a>
+                                    </div>
 								</div>
 							</div>
 						</div>
@@ -91,10 +83,14 @@ document.addEventListener('DOMContentLoaded', function() {
         return document.querySelector('meta[name="api-token"]').getAttribute('content');
     }
 
+    function getApiBaseUrl() {
+        return document.querySelector('meta[name="api-base-url"]').getAttribute('content');
+    }
+
     async function fetchCart() {
         try {
             const jwtToken = getJwtToken();
-            
+
             if (!jwtToken) {
                 throw new Error('Token JWT tidak valid. Silakan login kembali.');
             }
@@ -108,7 +104,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             console.log('Request Headers:', headers);
 
-            const cartResponse = await fetch('/api/keranjang', {
+            const cartResponse = await fetch(`${getApiBaseUrl()}/api/keranjang`, {
                 method: 'GET',
                 headers: headers
             });
@@ -132,16 +128,17 @@ document.addEventListener('DOMContentLoaded', function() {
         cart.detail_pemesanan.forEach((item, key) => {
             const row = document.createElement('tr');
             const photo = item.produk_variasi.gambar ? item.produk_variasi.gambar.split(',')[0] : '';
-            
+
             row.innerHTML = `
                 <td class="image" data-title="No">
                     <img src="${photo}" alt="${item.produk_variasi.variasi}">
                 </td>
                 <td class="product-des" data-title="Description">
-                    <p class="product-name">${item.produk_variasi.variasi}</p>
+                    <p class="product-name" style="font-size: 1.1em;">${item.produk_variasi.nama_produk}</p>
+                    <p class="product-variasi" style="font-size: 0.8em; color: gray;">${item.produk_variasi.variasi}</p>
                 </td>
                 <td class="price" data-title="Price">
-                    <span>$${item.produk_variasi.harga.toFixed(2)}</span>
+                    <span>Rp${item.produk_variasi.harga.toLocaleString('id-ID')}</span>
                 </td>
                 <td class="qty" data-title="Qty">
                     <div class="input-group">
@@ -154,12 +151,12 @@ document.addEventListener('DOMContentLoaded', function() {
                             </button>
                         </div>
                         <input type="text" 
-                               name="quant[${key}]" 
-                               class="input-number qty-input" 
-                               data-min="1" 
-                               data-max="100" 
-                               data-id="${item.id_detail_pemesanan}"
-                               value="${item.jumlah}">
+                            name="quant[${key}]" 
+                            class="input-number qty-input" 
+                            data-min="1" 
+                            data-max="100" 
+                            data-id="${item.id_detail_pemesanan}"
+                            value="${item.jumlah}">
                         <div class="button plus">
                             <button type="button" 
                                     class="btn btn-primary btn-number increase-qty" 
@@ -170,6 +167,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             </button>
                         </div>
                     </div>
+                    <span class="stock-message" data-id="${item.id_detail_pemesanan}"></span>
                 </td>
                 <td class="total-amount cart_single_price" data-title="Total">
                     <span class="money">Rp ${(item.produk_variasi.harga * item.jumlah).toLocaleString('id-ID')}</span>
@@ -184,18 +182,28 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         // Update subtotal and total
-        document.getElementById('cart-subtotal').querySelector('span').textContent = `$${cart.total_harga.toFixed(2)}`;
-        document.getElementById('order_total_price').querySelector('span').textContent = `$${cart.total_harga.toFixed(2)}`;
+        document.getElementById('cart-subtotal').querySelector('span').textContent = `Rp${cart.total_harga.toLocaleString('id-ID')}`;
+        // document.getElementById('order_total_price').querySelector('span').textContent = `Rp${cart.total_harga.toLocaleString('id-ID')}`;
 
-        attachCartEventListeners();
+        attachCartEventListeners(cart);
+        updateStockMessages(cart); // Validasi stok saat pertama kali render
+        validateCart(cart); // Validasi seluruh keranjang dan update tombol checkout
     }
 
-    function attachCartEventListeners() {
+    function attachCartEventListeners(cart) {
         // Quantity increase
         document.querySelectorAll('.increase-qty').forEach(btn => {
             btn.addEventListener('click', () => {
                 const input = btn.closest('.input-group').querySelector('.input-number');
-                input.value = parseInt(input.value) + 1;
+                const itemId = input.dataset.id;
+                const item = cart.detail_pemesanan.find(item => item.id_detail_pemesanan == itemId);
+                const stock = item.produk_variasi.stok;
+
+                if (parseInt(input.value) < stock) {
+                    input.value = parseInt(input.value) + 1;
+                    updateStockMessage(item, input);
+                    validateCart(cart); // Validasi keranjang setelah perubahan
+                }
             });
         });
 
@@ -205,6 +213,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const input = btn.closest('.input-group').querySelector('.input-number');
                 if (input.value > 1) {
                     input.value = parseInt(input.value) - 1;
+                    const itemId = input.dataset.id;
+                    const item = cart.detail_pemesanan.find(item => item.id_detail_pemesanan == itemId);
+                    updateStockMessage(item, input);
+                    validateCart(cart); // Validasi keranjang setelah perubahan
                 }
             });
         });
@@ -212,12 +224,61 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update cart
         document.getElementById('update-cart-btn').addEventListener('click', updateCart);
 
+        // Remove item
         document.querySelectorAll('.remove-item').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const itemId = btn.dataset.id;
                 await deleteCartItem(itemId);
+                fetchCart(); // Refresh keranjang setelah menghapus item
             });
         });
+    }
+
+    function updateStockMessages(cart) {
+        cart.detail_pemesanan.forEach(item => {
+            const input = document.querySelector(`.qty-input[data-id="${item.id_detail_pemesanan}"]`);
+            input.addEventListener('input', (e) => updateStockMessage(item, e.target)); // Real-time listener
+            updateStockMessage(item, input); // Initial check
+        });
+    }
+
+    function updateStockMessage(item, input) {
+        const stockMessage = document.querySelector(`.stock-message[data-id="${item.id_detail_pemesanan}"]`);
+        const currentQty = parseInt(input.value);
+        const stock = item.produk_variasi.stok;
+
+        if (currentQty > stock) {
+            stockMessage.textContent = `Stok tersisa: ${stock}`;
+            stockMessage.style.color = 'red';
+        } else if (currentQty < 1) {
+            stockMessage.textContent = 'Jumlah tidak boleh 0';
+            stockMessage.style.color = 'red';
+        } else {
+            stockMessage.textContent = '';
+        }
+    }
+
+    function validateCart(cart) {
+        const checkoutButton = document.querySelector('.checkout-button');
+        const warningMessage = document.getElementById('checkout-warning');
+        let isCartValid = true;
+
+        cart.detail_pemesanan.forEach(item => {
+            const currentQty = item.jumlah;
+            const stock = item.produk_variasi.stok;
+
+            if (currentQty > stock || currentQty === 0) {
+                isCartValid = false;
+            }
+        });
+
+        // Aktifkan atau nonaktifkan tombol checkout berdasarkan validasi
+        checkoutButton.disabled = !isCartValid;
+        if (!isCartValid) {
+            warningMessage.style.display = 'inline';
+        } else {
+            warningMessage.style.display = 'none';
+        }
     }
 
     async function updateCart() {
@@ -238,7 +299,7 @@ document.addEventListener('DOMContentLoaded', function() {
             };
 
             const updatePromises = updates.map(update => 
-                fetch(`/api/keranjang/update/${update.id_detail_pemesanan}`, {
+                fetch(`${getApiBaseUrl()}/api/keranjang/update/${update.id_detail_pemesanan}`, {
                     method: 'PUT',
                     headers: headers,
                     body: JSON.stringify({ jumlah: update.jumlah })
@@ -249,7 +310,12 @@ document.addEventListener('DOMContentLoaded', function() {
             fetchCart(); // Reload cart after updates
         } catch (error) {
             console.error('Update cart error:', error);
-            alert('Failed to update cart');
+            Swal.fire({
+                title: "Gagal!",
+                text: "Gagal Untuk mengupdate item dari keranjang, Silakan Coba Lagi",
+                icon: "error",
+                confirmButtonText: "OK"
+            });
         }
     }
 
@@ -263,7 +329,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Authorization': `Bearer ${jwtToken}`
             };
 
-            const response = await fetch(`/api/keranjang/delete/${itemId}`, {
+            const response = await fetch(`${getApiBaseUrl()}/api/keranjang/delete/${itemId}`, {
                 method: 'DELETE',
                 headers: headers
             });
@@ -275,9 +341,15 @@ document.addEventListener('DOMContentLoaded', function() {
             fetchCart(); // Reload cart after deletion
         } catch (error) {
             console.error('Delete item error:', error);
-            alert('Failed to delete item from cart');
+            Swal.fire({
+                title: "Gagal!",
+                text: "Gagal Untuk menghapus item dari keranjang, Silakan Coba Lagi",
+                icon: "error",
+                confirmButtonText: "OK"
+            });
         }
     }
+    // updateStockMessage();
     // Initial cart fetch
     fetchCart();
 });

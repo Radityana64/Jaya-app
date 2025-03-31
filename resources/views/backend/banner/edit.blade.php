@@ -59,12 +59,8 @@
 
 @endsection
 
-@push('styles')
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-@endpush
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     function getCsrfToken() {
         return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -72,6 +68,9 @@
 
     function getJwtToken() {
         return document.querySelector('meta[name="api-token"]').getAttribute('content');
+    }
+    function getApiBaseUrl(){
+        return document.querySelector('meta[name="api-base-url"]').getAttribute('content');
     }
 function getKategoriIdFromUrl() {
   const pathParts = window.location.pathname.split('/');
@@ -82,7 +81,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const bannerId = getKategoriIdFromUrl();
     
     // Ambil data banner aktif berdasarkan ID
-    fetch(`http://127.0.0.1:8000/api/banners/aktif/${bannerId}`, {
+    fetch(`${getApiBaseUrl()}/api/banners/aktif/${bannerId}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -182,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('status', status);
         formData.append('_method', 'PUT'); // Method PUT pada form data
 
-        fetch(`/api/banners/${bannerId}`, {
+        fetch(`${getApiBaseUrl()}/api/banners/${bannerId}`, {
             method: 'POST',  // Tetap POST karena kita menggunakan form data
             body: formData,  // Kirim form data
             headers: {
